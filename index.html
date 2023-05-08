@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Eliteone Whatsapp System</title>
+    <style>
+        body {
+            margin: 0;
+            padding-bottom: 3rem;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #form {
+            background: rgba(0, 0, 0, 0.15);
+            padding: 0.25rem;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            height: 3rem;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        #input {
+            border: none;
+            padding: 0 1rem;
+            flex-grow: 1;
+            border-radius: 2rem;
+            margin: 0.25rem;
+        }
+
+        #input:focus {
+            outline: none;
+        }
+
+        #form>button {
+            background: #333;
+            border: none;
+            padding: 0 1rem;
+            margin: 0.25rem;
+            border-radius: 3px;
+            outline: none;
+            color: #fff;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #messages>li {
+            padding: 0.5rem 1rem;
+        }
+
+        #messages>li:nth-child(odd) {
+            background: #efefef;
+        }
+
+        #qrcode {
+            display: none;
+            /* Showed when qr code received */
+            width: 100%;
+            margin: 10px 0;
+            border: 1px solid #efefef;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+
+
+<body>
+    <div>DJC Whatsapp App</div>
+    <div id="qrcode-container"></div>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+
+        socket.auth = { username: "main" };
+        socket.connect();
+
+        var form = document.getElementById('form');
+        var input = document.getElementById('input');
+        var qrContainer = document.getElementById('qrcode-container');
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (input.value) {
+                socket.emit('clientId', input.value);
+                input.value = "";
+            }
+        });
+
+        function addMessage(message) {
+            var item = document.createElement('li');
+            item.textContent = message;
+            messages.appendChild(item);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function addImage(src) {
+            var img = document.createElement('img');
+            img.src = src;
+            img.width = "200"
+            messages.appendChild(img);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        var messages = document.getElementById('messages');
+
+        socket.on('clientId', function (clientId) {
+            addMessage("Connecting to whatsapp with clientId: " + clientId)
+        })
+
+        socket.on('qr', function (src) {
+            // Create a new image element
+            console.log(src)
+            var newQr = document.createElement('img');
+            newQr.src = src;
+            newQr.alt = "QR Code";
+
+            // Remove the old QR code if it exists
+            if (qrContainer.firstChild) {
+                qrContainer.removeChild(qrContainer.firstChild);
+            }
+
+            // Append the new QR code to the container
+            qrContainer.appendChild(newQr);
+        });
+
+        socket.on('session', function (obj) {
+            console.log(obj)
+            var clientId = obj.clientId
+            var username = obj.username
+            var message = "Whatsapp Client is ready with username: " + username
+            if (qrContainer.firstChild) {
+                qrContainer.removeChild(qrContainer.firstChild);
+            }
+            addMessage(message)
+        });
+
+        socket.on("message", function (msg) {
+            var message = msg.name + " : " + msg.body;
+            if (msg.media) {
+                const imgSrc = `data:${msg.media.mimetype};base64,${msg.media.data}`;
+                addImage(imgSrc)
+            }
+            addMessage(message)
+
+        })
+
+        socket.on("connection", function (msg) {
+            console.log(msg)
+            addMessage(msg)
+        })
+    </script>
+</body>
+
+</html>
