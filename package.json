@@ -23,32 +23,5 @@
   },
   "devDependencies": {
     "eslint": "^8.39.0"
-  },
-  "build": {
-    "appId": "ai.djc.whatsappweb",
-    "productName": "Eliteone Whatsapp System",
-    "directories": {
-      "output": "build2"
-    },
-    "files": [
-      "**/*"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ]
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "asar": true,
-      "asarUnpack": "node_modules/puppeteer/.local-chromium/**/*"
-    }
   }
 }
