@@ -4,8 +4,7 @@ const mongoose = require("mongoose");
 const qrcode = require("qrcode");
 
 const authenticatioMethod = "local"; // local or remote
-const URI =
-    "mongodb+srv://daveckw:Elite2018!!@cluster0.vnecg10.mongodb.net/?retryWrites=true&w=majority";
+const URI = "";
 
 exports.initializeClient = async (clientId, socket) => {
     try {
