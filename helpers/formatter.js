@@ -1,9 +1,18 @@
 const phoneNumberFormatter = function (number) {
-    // 1. Menghilangkan karakter selain angka
+    // Check if number is not a string
+    if (typeof number !== "string") {
+        try {
+            // Try to convert number to string
+            number = number.toString();
+        } catch (error) {
+            // Log error message and throw error
+            console.error("Error converting number to string:", error);
+            throw error;
+        }
+    }
+
     let formatted = number.replace(/\D/g, "");
 
-    // 2. Menghilangkan angka 0 di depan (prefix)
-    //    Kemudian diganti dengan 62
     if (formatted.startsWith("0")) {
         formatted = "60" + formatted.substr(1);
     }
@@ -16,5 +25,5 @@ const phoneNumberFormatter = function (number) {
 };
 
 module.exports = {
-    phoneNumberFormatter,
+    phoneNumberFormatter
 };
