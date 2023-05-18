@@ -1,12 +1,16 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const fileUpload = require("express-fileupload");
+//const fileUpload = require("express-fileupload");
 const cors = require("cors");
-const { body, validationResult } = require("express-validator");
+const { body, check, validationResult } = require("express-validator");
 const { chat } = require("./chat");
 const { phoneNumberFormatter } = require("./helpers/formatter");
 const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
+const { MessageMedia, List } = require("whatsapp-web.js");
+
+const multer = require("multer");
+const upload = multer();
 
 const port = process.env.PORT || 8080;
 
@@ -19,11 +23,12 @@ app.use(
     })
 );
 
-app.use(
+/*app.use(
     fileUpload({
         debug: false
     })
 );
+*/
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -127,6 +132,77 @@ app.post(
 
         client[from]
             .sendMessage(number, message)
+            .then((response) => {
+                console.log(`${green}Sent\n${reset}`);
+                res.status(200).json({
+                    status: true,
+                    response: response
+                });
+            })
+            .catch((err) => {
+                console.log(`${red}Error\n${reset}`);
+                res.status(500).json({
+                    status: false,
+                    response: err
+                });
+            });
+    }
+);
+
+// Sending Image
+
+app.post(
+    "/send-image-message",
+    upload.single("file"),
+    //upload.array('files')
+
+    [
+        body("number").notEmpty(),
+        check("isFilePresent")
+            .custom(
+                (value, { req }) =>
+                    req.file.size > 0 && Boolean(req.body.isFilePresent)
+            )
+            .withMessage("File should not be empty"),
+        body("from").notEmpty()
+    ],
+    async (req, res) => {
+        const errors = validationResult(req).formatWith(({ msg }) => {
+            return msg;
+        });
+
+        if (!errors.isEmpty()) {
+            console.log(errors);
+            return res.status(422).json({
+                status: false,
+                message: errors.mapped()
+            });
+        }
+
+        const number = phoneNumberFormatter(req.body.number);
+        const message = new MessageMedia(
+            req.file.mimetype,
+            req.file.buffer.toString("base64"),
+            req.file.originalname,
+            req.file.size
+        );
+        const from = req.body.from;
+        const caption = req.body.caption;
+        const isRegisteredNumber = await checkRegisteredNumber(
+            number,
+            client[from]
+        );
+
+        if (!isRegisteredNumber) {
+            console.log(`${red}The number is not registered\n${reset}`);
+            return res.status(422).json({
+                status: false,
+                message: "The number is not registered"
+            });
+        }
+
+        client[from]
+            .sendMessage(number, message, { caption: caption })
             .then((response) => {
                 console.log(`${green}Sent\n${reset}`);
                 res.status(200).json({
