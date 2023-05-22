@@ -7,7 +7,7 @@ const { body, check, validationResult } = require("express-validator");
 const { chat } = require("./chat");
 const { phoneNumberFormatter } = require("./helpers/formatter");
 const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
-const { MessageMedia, List } = require("whatsapp-web.js");
+const { MessageMedia } = require("whatsapp-web.js");
 
 const multer = require("multer");
 const upload = multer();
@@ -141,6 +141,7 @@ app.post(
             })
             .catch((err) => {
                 console.log(`${red}Error\n${reset}`);
+                console.log(err);
                 res.status(500).json({
                     status: false,
                     response: err
