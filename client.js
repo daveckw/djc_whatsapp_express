@@ -2,7 +2,7 @@ const { Client, LocalAuth, RemoteAuth } = require("whatsapp-web.js");
 const { MongoStore } = require("wwebjs-mongo");
 const mongoose = require("mongoose");
 const qrcode = require("qrcode");
-// const { firestore } = require("./firebase");
+const { firestore } = require("./firebase");
 const { dateToString } = require("./helpers/dateToString");
 
 const authenticatioMethod = "local"; // local or remote

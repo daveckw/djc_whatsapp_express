@@ -35,14 +35,14 @@ const initializeClient = async (clientId) => {
 };
 
 async function clientInitialization(clientId, client) {
-    // client.on("qr", async (qr) => {
-    //     try {
-    //         const dataUrl = await qrcode.toDataURL(qr);
-    //         console.log("QR code generated");
-    //     } catch (err) {
-    //         console.error("Error generating QR code:", err);
-    //     }
-    // });
+    client.on("qr", async (qr) => {
+        try {
+            const dataUrl = await qrcode.toDataURL(qr);
+            console.log("QR code generated for client at restartClient:", clientId);
+        } catch (err) {
+            console.error("Error generating QR code:", err);
+        }
+    });
 
     client.on("ready", () => {
         console.log(`Whatsapp Client ${clientId} is ready!`);

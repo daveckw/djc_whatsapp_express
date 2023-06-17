@@ -1,7 +1,6 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-//const fileUpload = require("express-fileupload");
 const cors = require("cors");
 const { body, check, validationResult } = require("express-validator");
 const { chat } = require("./chat");
@@ -69,14 +68,14 @@ const getWhatsAppClients = async () => {
         });
         clientIds.forEach(async (clientId) => {
             console.log("clientId: ", clientId);
-            restartClient(clientId);
+            restartClient(clientId, clients);
         });
     } catch (error) {
         console.error("Error getting documents: ", error);
     }
 };
 
-// getWhatsAppClients();
+getWhatsAppClients();
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
@@ -300,7 +299,7 @@ process.on("uncaughtException", (err, origin) => {
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-    console.log(`${red}Unhandled Rejection.${reset}`);
+    console.log(`${red}Unhandled Rejection.${reset}`, reason);
 });
 
 server.listen(port, () => {
