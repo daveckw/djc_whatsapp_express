@@ -1,28 +1,29 @@
 const { initializeClient } = require("./client");
 
-exports.chat = (socket, client) => {
+exports.chat = (socket, clients) => {
     socket.on("clientId", async (clientId) => {
         console.log("Client Id: ", clientId);
         socket.emit("clientId", clientId);
 
-        if (client[socket.username]) {
+        if (clients[socket.username]) {
             if (
                 clientId ===
-                client[socket.username].options.authStrategy.clientId
+                    clients[socket.username].options.authStrategy.clientId &&
+                clients[socket.username].getState() === "CONNECTED"
             ) {
                 socket.emit("ready", { clientId, username: socket.username });
                 return;
             }
 
-            client[socket.username] = await initializeClient(clientId, socket);
+            clients[socket.username] = await initializeClient(clientId, socket);
             socket.emit("session", {
                 clientId: clientId,
                 username: socket.username
             });
         }
 
-        if (!client[socket.username]) {
-            client[socket.username] = await initializeClient(clientId, socket);
+        if (!clients[socket.username]) {
+            clients[socket.username] = await initializeClient(clientId, socket);
             socket.emit("session", {
                 clientId: clientId,
                 username: socket.username
@@ -31,7 +32,7 @@ exports.chat = (socket, client) => {
     });
 
     socket.on("chat message", async (msg) => {
-        if (!client[socket.username]) {
+        if (!clients[socket.username]) {
             console.log("Client is not ready");
             return;
         }
@@ -42,9 +43,9 @@ exports.chat = (socket, client) => {
         console.log("--------------");
 
         try {
-            const numberId = await client[socket.username].getNumberId(to);
+            const numberId = await clients[socket.username].getNumberId(to);
             if (numberId) {
-                client[socket.username].sendMessage(to, body);
+                clients[socket.username].sendMessage(to, body);
                 socket.emit("chat message", msg);
             } else {
                 socket.emit("chat message", { ...msg, body: "Invalid number" });

@@ -10,31 +10,22 @@ const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
 const { MessageMedia } = require("whatsapp-web.js");
 
 const multer = require("multer");
+const { firestore } = require("./firebase");
+const { restartClient } = require("./helpers/restartClient");
+
 const upload = multer();
 
 const port = process.env.PORT || 8080;
 
 const app = express();
-const corsOptions = {
-    origin: "https://djcsystem.com",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-};
 
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 app.use(
     express.urlencoded({
         extended: true
     })
 );
-
-/*app.use(
-    fileUpload({
-        debug: false
-    })
-);
-*/
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -66,19 +57,46 @@ io.use((socket, next) => {
     next();
 });
 
-let client = {};
+let clients = {};
+const getWhatsAppClients = async () => {
+    const collectionRef = firestore
+        .collection("whatsappClients")
+        .where("status", "==", "ready");
+
+    try {
+        const snapshot = await collectionRef.get();
+        const clientIds = snapshot.docs.map((doc) => {
+            return doc.id;
+        });
+        clientIds.forEach(async (clientId) => {
+            console.log("clientId: ", clientId);
+            restartClient(clientId);
+        });
+    } catch (error) {
+        console.error("Error getting documents: ", error);
+    }
+};
+
+// getWhatsAppClients();
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
     io.emit("connection", "A user connected");
     io.emit("username", socket.username);
 
-    chat(socket, client); // Initialise client
+    chat(socket, clients); // Initialise client
 
     socket.on("disconnect", () => {
         console.log(socket.username + " user disconnected");
         io.emit("session", "");
     });
+});
+
+let connections = new Set();
+
+server.on("connection", (conn) => {
+    connections.add(conn);
+    conn.on("close", () => connections.delete(conn));
 });
 
 process.on("SIGINT", () => {
@@ -87,6 +105,11 @@ process.on("SIGINT", () => {
     // Emit a 'shutdown' event to the React app via Socket.IO
     io.emit("session", "");
     io.emit("username", "");
+
+    // Close all connections
+    for (let conn of connections) {
+        conn.end();
+    }
 
     // Close the server
     server.close(() => {
@@ -125,7 +148,7 @@ app.post(
 
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
-            client[from]
+            clients[from]
         );
 
         if (!isRegisteredNumber) {
@@ -136,7 +159,7 @@ app.post(
             });
         }
 
-        client[from]
+        clients[from]
             .sendMessage(number, message)
             .then((response) => {
                 console.log(`${green}Sent\n${reset}`);
@@ -157,7 +180,6 @@ app.post(
 );
 
 // Sending Image
-
 app.post(
     "/send-image-message",
     upload.single("file"),
@@ -197,7 +219,7 @@ app.post(
         const caption = req.body.caption;
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
-            client[from]
+            clients[from]
         );
 
         if (!isRegisteredNumber) {
@@ -208,7 +230,7 @@ app.post(
             });
         }
 
-        client[from]
+        clients[from]
             .sendMessage(number, message, { caption: caption })
             .then((response) => {
                 console.log(`${green}Sent\n${reset}`);
@@ -227,12 +249,59 @@ app.post(
     }
 );
 
+// Check state API
+app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
+    const from = req.body.from;
+    try {
+        const state = await clients[from].getState();
+        console.log(state);
+        res.status(200).json({
+            status: true
+        });
+    } catch (err) {
+        console.log(`${red}${err.message} from: ${from}${reset}`);
+        res.status(500).json({
+            status: false,
+            response: err.message
+        });
+    }
+});
+
+// Check clients
+app.post("/check-clients", async (req, res) => {
+    try {
+        let status = {};
+        for (let key in clients) {
+            const state = await clients[key].getState();
+            console.log(`Client ${key} state: ${state}`);
+            if (state === "CONNECTED") {
+                status[key] = "active";
+            } else {
+                status[key] = "disconnected";
+            }
+        }
+        res.status(200).json({
+            status: true,
+            clientStatuses: status
+        });
+    } catch (err) {
+        console.log(`${err.message}`);
+        res.status(500).json({
+            status: false,
+            response: err.message
+        });
+    }
+});
+
 process.on("uncaughtException", (err, origin) => {
-    console.log(`Caught exception: ${err}\n` + `Exception origin: ${origin}`);
+    console.log(
+        `${red}Caught exception: ${err.message}\n` +
+            `Exception origin: ${origin}${reset}`
+    );
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-    console.log("Unhandled Rejection at:", promise, "reason:", reason);
+    console.log(`${red}Unhandled Rejection.${reset}`);
 });
 
 server.listen(port, () => {
