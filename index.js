@@ -75,7 +75,7 @@ const getWhatsAppClients = async () => {
     }
 };
 
-// getWhatsAppClients();
+getWhatsAppClients();
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
