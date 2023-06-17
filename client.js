@@ -77,14 +77,14 @@ async function clientInitialization(clientId, client, socket) {
 
     client.on("ready", () => {
         console.log(`Whatsapp Client ${clientId} is ready!`);
-        // firestore.collection("whatsappClients").doc(clientId).set(
-        //     {
-        //         clientId: clientId,
-        //         status: "ready",
-        //         date: new Date()
-        //     },
-        //     { merge: true }
-        // );
+        firestore.collection("whatsappClients").doc(clientId).set(
+            {
+                clientId: clientId,
+                status: "ready",
+                date: new Date()
+            },
+            { merge: true }
+        );
         socket.emit("ready", {
             clientId: clientId,
             username: socket.username
@@ -97,14 +97,14 @@ async function clientInitialization(clientId, client, socket) {
 
     client.on("disconnected", (reason) => {
         console.log("Client disconnected:", reason);
-        // firestore.collection("whatsappClients").doc(clientId).set(
-        //     {
-        //         clientId: clientId,
-        //         status: "disconnected",
-        //         date: new Date()
-        //     },
-        //     { merge: true }
-        // );
+        firestore.collection("whatsappClients").doc(clientId).set(
+            {
+                clientId: clientId,
+                status: "disconnected",
+                date: new Date()
+            },
+            { merge: true }
+        );
         socket.emit("session", "");
         socket.emit("username", "");
     });
