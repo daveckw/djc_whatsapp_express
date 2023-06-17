@@ -41,7 +41,7 @@ const initializeClient = async (clientId) => {
 async function clientInitialization(clientId, client) {
     client.on("qr", async (qr) => {
         try {
-            const dataUrl = await qrcode.toDataURL(qr);
+            // const dataUrl = await qrcode.toDataURL(qr);
             firestore.collection("whatsappClients").doc(clientId).set(
                 {
                     clientId: clientId,
@@ -57,7 +57,7 @@ async function clientInitialization(clientId, client) {
                 "disconnecting client. Reconnect using web interface."
             );
         } catch (err) {
-            console.error("Error generating QR code:", err);
+            console.error(`${red}Error generating QR code:${reset}`, err);
         }
     });
 
@@ -159,7 +159,9 @@ async function clientInitialization(clientId, client) {
         await client.initialize();
         return client;
     } catch (err) {
-        console.error("Client initialization error:", err);
+        console.log(
+            `${red}Client initialization error: ${err.message}${reset}`
+        );
         return null;
     }
 }

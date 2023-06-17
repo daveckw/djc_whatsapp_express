@@ -68,14 +68,25 @@ exports.initializeClient = async (clientId, socket) => {
     }
 };
 
+let qrCount = {};
+
 async function clientInitialization(clientId, client, socket) {
     client.on("qr", async (qr) => {
+        if (!qrCount[clientId]) qrCount[clientId] = 1;
         try {
             const dataUrl = await qrcode.toDataURL(qr);
-            console.log("QR code generated");
-            socket.emit("qr", dataUrl);
+            console.log(`${qrCount[clientId]}: QR code generated`);
+            qrCount[clientId]++;
+            if (qrCount[clientId] > 2) {
+                console.log("Times out. Destroying client ", clientId);
+                client.destroy();
+                socket.emit("qr", "");
+                qrCount[clientId] = 0;
+            } else {
+                socket.emit("qr", dataUrl);
+            }
         } catch (err) {
-            console.error("Error generating QR code:", err);
+            console.error(`${red}Error generating QR code:${reset}`, err);
         }
     });
 
@@ -185,7 +196,9 @@ async function clientInitialization(clientId, client, socket) {
         await client.initialize();
         return client;
     } catch (err) {
-        console.error("Client initialization error:", err);
+        console.log(
+            `${red}Client initialization error: ${err.message}${reset}`
+        );
         return null;
     }
 }
