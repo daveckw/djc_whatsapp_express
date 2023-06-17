@@ -1,7 +1,6 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-//const fileUpload = require("express-fileupload");
 const cors = require("cors");
 const { body, check, validationResult } = require("express-validator");
 const { chat } = require("./chat");
@@ -10,8 +9,6 @@ const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
 const { MessageMedia } = require("whatsapp-web.js");
 
 const multer = require("multer");
-const { firestore } = require("./firebase");
-const { restartClient } = require("./helpers/restartClient");
 
 const upload = multer();
 
@@ -57,26 +54,6 @@ io.use((socket, next) => {
 });
 
 let clients = {};
-const getWhatsAppClients = async () => {
-    const collectionRef = firestore
-        .collection("whatsappClients")
-        .where("status", "==", "ready");
-
-    try {
-        const snapshot = await collectionRef.get();
-        const clientIds = snapshot.docs.map((doc) => {
-            return doc.id;
-        });
-        clientIds.forEach(async (clientId) => {
-            console.log("clientId: ", clientId);
-            restartClient(clientId);
-        });
-    } catch (error) {
-        console.error("Error getting documents: ", error);
-    }
-};
-
-// getWhatsAppClients();
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
