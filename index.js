@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -75,7 +76,9 @@ const getWhatsAppClients = async () => {
     }
 };
 
-getWhatsAppClients();
+if (process.env.NODE_ENV !== "development") {
+    getWhatsAppClients();
+}
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
@@ -271,12 +274,18 @@ app.post("/check-clients", async (req, res) => {
         let status = {};
         await Promise.all(
             Object.keys(clients).map(async (key) => {
-                const state = await clients[key].getState();
-                console.log(`Client ${key} state: ${state}`);
-                if (state === "CONNECTED") {
-                    status[key] = "active";
-                    return Promise.resolve();
-                } else {
+                console.log("key: ", key);
+                try {
+                    const state = await clients[key].getState();
+                    console.log(`Client ${key} state: ${state}`);
+                    if (state === "CONNECTED") {
+                        status[key] = "active";
+                        return Promise.resolve();
+                    } else {
+                        status[key] = "disconnected";
+                        return Promise.resolve();
+                    }
+                } catch (err) {
                     status[key] = "disconnected";
                     return Promise.resolve();
                 }
@@ -287,7 +296,7 @@ app.post("/check-clients", async (req, res) => {
             clientStatuses: status
         });
     } catch (err) {
-        console.log(`${err.message}`);
+        console.log(`${red}${err.message}${reset}`);
         res.status(500).json({
             status: false,
             response: err.message
