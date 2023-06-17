@@ -272,6 +272,7 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
 app.post("/check-clients", async (req, res) => {
     try {
         let status = {};
+        let numberOfConnectedClients = 0;
         await Promise.all(
             Object.keys(clients).map(async (key) => {
                 console.log("key: ", key);
@@ -280,6 +281,7 @@ app.post("/check-clients", async (req, res) => {
                     console.log(`Client ${key} state: ${state}`);
                     if (state === "CONNECTED") {
                         status[key] = "active";
+                        numberOfConnectedClients++;
                         return Promise.resolve();
                     } else {
                         status[key] = "disconnected";
@@ -291,9 +293,11 @@ app.post("/check-clients", async (req, res) => {
                 }
             })
         );
+        console.log("Number of connected clients: ", numberOfConnectedClients);
         res.status(200).json({
             status: true,
-            clientStatuses: status
+            clientStatuses: status,
+            numberOfConnectedClients: numberOfConnectedClients
         });
     } catch (err) {
         console.log(`${red}${err.message}${reset}`);
