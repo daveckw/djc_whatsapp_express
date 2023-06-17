@@ -5,25 +5,37 @@ exports.chat = (socket, clients) => {
         console.log("Client Id: ", clientId);
         socket.emit("clientId", clientId);
 
-        if (clients[socket.username]) {
-            if (
-                clientId ===
-                    clients[socket.username].options.authStrategy.clientId &&
-                clients[socket.username].getState() === "CONNECTED"
-            ) {
-                socket.emit("ready", { clientId, username: socket.username });
-                return;
+        if (clients[clientId]) {
+            try {
+                const state = await clients[clientId]?.getState();
+                if (
+                    clientId ===
+                        clients[clientId].options.authStrategy.clientId &&
+                    state === "CONNECTED"
+                ) {
+                    socket.emit("ready", {
+                        clientId,
+                        username: socket.username
+                    });
+                    return;
+                }
+            } catch (err) {
+                console.log(err.message);
             }
 
-            clients[socket.username] = await initializeClient(clientId, socket);
+            clients[clientId] = await initializeClient(clientId, socket);
             socket.emit("session", {
                 clientId: clientId,
                 username: socket.username
             });
         }
 
-        if (!clients[socket.username]) {
-            clients[socket.username] = await initializeClient(clientId, socket);
+        if (!clients[clientId]) {
+            clients[clientId] = await initializeClient(
+                clientId,
+                socket,
+                clients
+            );
             socket.emit("session", {
                 clientId: clientId,
                 username: socket.username

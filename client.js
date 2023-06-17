@@ -8,6 +8,10 @@ const { dateToString } = require("./helpers/dateToString");
 const authenticatioMethod = "local"; // local or remote
 const URI = "";
 
+const reset = "\x1b[0m";
+const red = "\x1b[31m";
+const green = "\x1b[32m";
+
 exports.initializeClient = async (clientId, socket) => {
     try {
         // Create a new Whatspapp client instance
@@ -76,7 +80,7 @@ async function clientInitialization(clientId, client, socket) {
     });
 
     client.on("ready", () => {
-        console.log(`Whatsapp Client ${clientId} is ready!`);
+        console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
         firestore.collection("whatsappClients").doc(clientId).set(
             {
                 clientId: clientId,

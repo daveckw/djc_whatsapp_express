@@ -2,6 +2,10 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode");
 const { firestore } = require("../firebase");
 
+const reset = "\x1b[0m";
+const red = "\x1b[31m";
+const green = "\x1b[32m";
+
 const restartClient = async (clientId, clients) => {
     clients[clientId] = await initializeClient(clientId);
 };
@@ -38,14 +42,27 @@ async function clientInitialization(clientId, client) {
     client.on("qr", async (qr) => {
         try {
             const dataUrl = await qrcode.toDataURL(qr);
-            console.log("QR code generated for client at restartClient:", clientId);
+            firestore.collection("whatsappClients").doc(clientId).set(
+                {
+                    clientId: clientId,
+                    status: "disconnected",
+                    date: new Date()
+                },
+                { merge: true }
+            );
+            client.destroy();
+            console.log(
+                "QR code generated for client at restartClient:",
+                clientId,
+                "disconnecting client. Reconnect using web interface."
+            );
         } catch (err) {
             console.error("Error generating QR code:", err);
         }
     });
 
     client.on("ready", () => {
-        console.log(`Whatsapp Client ${clientId} is ready!`);
+        console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
         firestore.collection("whatsappClients").doc(clientId).set(
             {
                 clientId: clientId,
