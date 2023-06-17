@@ -75,7 +75,7 @@ const getWhatsAppClients = async () => {
     }
 };
 
-getWhatsAppClients();
+// getWhatsAppClients();
 
 io.on("connection", (socket) => {
     console.log("A user: " + socket.username + " connected");
@@ -269,15 +269,19 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
 app.post("/check-clients", async (req, res) => {
     try {
         let status = {};
-        for (let key in clients) {
-            const state = await clients[key].getState();
-            console.log(`Client ${key} state: ${state}`);
-            if (state === "CONNECTED") {
-                status[key] = "active";
-            } else {
-                status[key] = "disconnected";
-            }
-        }
+        await Promise.all(
+            Object.keys(clients).map(async (key) => {
+                const state = await clients[key].getState();
+                console.log(`Client ${key} state: ${state}`);
+                if (state === "CONNECTED") {
+                    status[key] = "active";
+                    return Promise.resolve();
+                } else {
+                    status[key] = "disconnected";
+                    return Promise.resolve();
+                }
+            })
+        );
         res.status(200).json({
             status: true,
             clientStatuses: status
