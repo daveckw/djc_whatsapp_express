@@ -250,6 +250,70 @@ app.post(
     }
 );
 
+// Sending Image with URL
+app.post(
+    "/send-image-url-message",
+    [
+        body("number").notEmpty(),
+        body("downloadURL").notEmpty(),
+        body("from").notEmpty()
+    ],
+    async (req, res) => {
+        const errors = validationResult(req).formatWith(({ msg }) => {
+            return msg;
+        });
+
+        if (!errors.isEmpty()) {
+            console.log(errors);
+            return res.status(422).json({
+                status: false,
+                message: errors.mapped()
+            });
+        }
+
+        console.log("--------sending-------");
+        console.log("number: ", req.body.number);
+        console.log("from: ", req.body.from);
+        console.log("message: ", "Attachment");
+
+        const downloadURL = req.body.downloadURL;
+
+        const number = phoneNumberFormatter(req.body.number);
+        const message = await MessageMedia.fromUrl(downloadURL);
+        const from = req.body.from;
+        const caption = req.body.caption;
+        const isRegisteredNumber = await checkRegisteredNumber(
+            number,
+            clients[from]
+        );
+
+        if (!isRegisteredNumber) {
+            console.log(`${red}The number is not registered\n${reset}`);
+            return res.status(422).json({
+                status: false,
+                message: "The number is not registered"
+            });
+        }
+
+        clients[from]
+            .sendMessage(number, message, { caption: caption })
+            .then((response) => {
+                console.log(`${green}Sent\n${reset}`);
+                res.status(200).json({
+                    status: true,
+                    response: response
+                });
+            })
+            .catch((err) => {
+                console.log(`${red}Error\n${reset}`);
+                res.status(500).json({
+                    status: false,
+                    response: err
+                });
+            });
+    }
+);
+
 // Check state API
 app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
     const from = req.body.from;
