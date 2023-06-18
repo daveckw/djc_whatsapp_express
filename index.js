@@ -308,19 +308,6 @@ app.post("/check-clients", async (req, res) => {
     }
 });
 
-// Send message
-app.post(
-    "/send-message-test",
-
-    async (req, res) => {
-        console.log("REQ: ", req);
-
-        res.status(200).json({
-            status: true
-        });
-    }
-);
-
 process.on("uncaughtException", (err, origin) => {
     console.log(
         `${red}Caught exception: ${err.message}\n` +
