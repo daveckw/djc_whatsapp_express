@@ -181,21 +181,31 @@ async function clientInitialization(clientId, client, socket) {
                 chatRoomId
             };
 
+            console.log("Type: ", whatsappMessage.type);
             if (whatsappMessage.type === "chat") {
-                firestore
-                    .collection("whatsappMessages")
-                    .doc(chatRoomId)
-                    .collection("messages")
-                    .doc(dateToString(whatsappMessage.date))
-                    .set(whatsappMessage, { merge: true });
-                firestore
-                    .collection("whatsappMessages")
-                    .doc(chatRoomId)
-                    .set(
-                        { date: whatsappMessage.date, chatRoomId, clientId },
-                        { merge: true }
-                    );
-                console.log("Message saved to firestore");
+                try {
+                    firestore
+                        .collection("whatsappMessages")
+                        .doc(chatRoomId)
+                        .collection("messages")
+                        .doc(dateToString(whatsappMessage.date))
+                        .set(whatsappMessage, { merge: true });
+                    firestore
+                        .collection("whatsappMessages")
+                        .doc(chatRoomId)
+                        .set(
+                            {
+                                date: whatsappMessage.date,
+                                chatRoomId,
+                                clientId
+                            },
+                            { merge: true }
+                        );
+                    console.log("Message saved to firestore");
+                } catch (err) {
+                    console.log(`${red}Error saving to Firestore${reset}`);
+                    console.log("Error: ", err.message);
+                }
             }
 
             // whatsappApp(whatsappMessage);
