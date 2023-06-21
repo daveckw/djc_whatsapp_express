@@ -24,6 +24,23 @@ const phoneNumberFormatter = function (number) {
     return formatted;
 };
 
+const extractNumbers = (s) => {
+    // Check if number is not a string
+    if (typeof s !== "string") {
+        try {
+            // Try to convert number to string
+            s = s.toString();
+        } catch (error) {
+            // Log error message and throw error
+            console.error("Error converting number to string:", error);
+            throw error;
+        }
+    }
+    let number = s.match(/\d+/g).join("");
+    return number;
+};
+
 module.exports = {
-    phoneNumberFormatter
+    phoneNumberFormatter,
+    extractNumbers
 };

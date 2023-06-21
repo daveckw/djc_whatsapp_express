@@ -3,6 +3,8 @@ const { MongoStore } = require("wwebjs-mongo");
 const mongoose = require("mongoose");
 const qrcode = require("qrcode");
 const { firestore } = require("./firebase");
+const axios = require("axios");
+const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
 
 const authenticatioMethod = "local"; // local or remote
@@ -68,9 +70,8 @@ exports.initializeClient = async (clientId, socket) => {
     }
 };
 
-let qrCount = {};
-
 async function clientInitialization(clientId, client, socket) {
+    let qrCount = {};
     client.on("qr", async (qr) => {
         if (!qrCount[clientId]) qrCount[clientId] = 1;
         try {
@@ -90,7 +91,7 @@ async function clientInitialization(clientId, client, socket) {
         }
     });
 
-    client.on("ready", () => {
+    client.on("ready", async () => {
         console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
         firestore.collection("whatsappClients").doc(clientId).set(
             {
@@ -100,6 +101,7 @@ async function clientInitialization(clientId, client, socket) {
             },
             { merge: true }
         );
+        console.log("phone: ", client["info"]["wid"]["user"]);
         socket.emit("ready", {
             clientId: clientId,
             username: socket.username
@@ -148,23 +150,7 @@ async function clientInitialization(clientId, client, socket) {
                 return;
             }
 
-            const whatsappMessage = {
-                date: new Date(message.timestamp * 1000),
-                from: message.from,
-                to: message.to,
-                name: message._data.notifyName,
-                type: message._data.type,
-                body: message.body
-            };
             socket.emit("message", msg);
-
-            // firestore
-            //     .collection("whatsappMessages")
-            //     .doc(clientId)
-            //     .collection("messages")
-            //     .doc(dateToString(whatsappMessage.date))
-            //     .set(whatsappMessage, { merge: true });
-            // console.log("Message saved to firestore");
         } catch (err) {
             console.log("Error: ", err.message);
         }
@@ -172,21 +158,47 @@ async function clientInitialization(clientId, client, socket) {
 
     client.on("message_create", async (message) => {
         try {
+            let chatRoomId = "";
+            if (message.fromMe) {
+                chatRoomId =
+                    extractNumbers(message.from) +
+                    "-" +
+                    extractNumbers(message.to);
+            } else {
+                chatRoomId =
+                    extractNumbers(message.to) +
+                    "-" +
+                    extractNumbers(message.from);
+            }
             const whatsappMessage = {
                 date: new Date(message.timestamp * 1000),
                 from: message.from,
                 to: message.to,
                 name: message._data.notifyName,
                 type: message._data.type,
-                body: message.body
+                body: message.body,
+                clientId,
+                chatRoomId
             };
-            // firestore
-            //     .collection("whatsappMessages")
-            //     .doc(clientId)
-            //     .collection("messages")
-            //     .doc(dateToString(whatsappMessage.date))
-            //     .set(whatsappMessage, { merge: true });
-            // console.log("Message saved to firestore");
+
+            if (whatsappMessage.type === "chat") {
+                firestore
+                    .collection("whatsappMessages")
+                    .doc(chatRoomId)
+                    .collection("messages")
+                    .doc(dateToString(whatsappMessage.date))
+                    .set(whatsappMessage, { merge: true });
+                firestore
+                    .collection("whatsappMessages")
+                    .doc(chatRoomId)
+                    .set(
+                        { date: whatsappMessage.date, chatRoomId, clientId },
+                        { merge: true }
+                    );
+                console.log("Message saved to firestore");
+            }
+
+            // whatsappApp(whatsappMessage);
         } catch (err) {
             console.log("Error: ", err.message);
         }
@@ -202,3 +214,25 @@ async function clientInitialization(clientId, client, socket) {
         return null;
     }
 }
+
+// function whatsappApp(whatsappMessage) {
+//     let data = JSON.stringify(whatsappMessage);
+
+//     let config = {
+//         method: "post",
+//         maxBodyLength: Infinity,
+//         url: "http://127.0.0.1:5001/facebook-api-59e5c/asia-east2/whatsappApp",
+//         headers: {
+//             "Content-Type": "application/json"
+//         },
+//         data: data
+//     };
+
+//     console.log("Sending to whatsappApp");
+//     axios
+//         .request(config)
+//         .then((response) => {})
+//         .catch((error) => {
+//             console.log(`${red}${error.message}${reset}`);
+//         });
+// }
