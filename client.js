@@ -72,24 +72,48 @@ exports.initializeClient = async (clientId, socket) => {
 
 async function clientInitialization(clientId, client, socket) {
     let qrCount = {};
-    client.on("qr", async (qr) => {
-        if (!qrCount[clientId]) qrCount[clientId] = 1;
-        try {
-            const dataUrl = await qrcode.toDataURL(qr);
-            console.log(`${qrCount[clientId]}: QR code generated`);
-            qrCount[clientId]++;
-            if (qrCount[clientId] > 2) {
-                console.log("Times out. Destroying client ", clientId);
-                client.destroy();
-                socket.emit("qr", "");
-                qrCount[clientId] = 0;
-            } else {
-                socket.emit("qr", dataUrl);
+    if (socket) {
+        client.on("qr", async (qr) => {
+            if (!qrCount[clientId]) qrCount[clientId] = 1;
+            try {
+                const dataUrl = await qrcode.toDataURL(qr);
+                console.log(`${qrCount[clientId]}: QR code generated`);
+                qrCount[clientId]++;
+                if (qrCount[clientId] > 2) {
+                    console.log("Times out. Destroying client ", clientId);
+                    client.destroy();
+                    socket?.emit("qr", "");
+                    qrCount[clientId] = 0;
+                } else {
+                    socket?.emit("qr", dataUrl);
+                }
+            } catch (err) {
+                console.error(`${red}Error generating QR code:${reset}`, err);
             }
-        } catch (err) {
-            console.error(`${red}Error generating QR code:${reset}`, err);
-        }
-    });
+        });
+    } else {
+        client.on("qr", async (qr) => {
+            try {
+                // const dataUrl = await qrcode.toDataURL(qr);
+                firestore.collection("whatsappClients").doc(clientId).set(
+                    {
+                        clientId: clientId,
+                        status: "disconnected",
+                        date: new Date()
+                    },
+                    { merge: true }
+                );
+                client.destroy();
+                console.log(
+                    "QR code generated for client at restartClient:",
+                    clientId,
+                    "disconnecting client. Reconnect using web interface."
+                );
+            } catch (err) {
+                console.error(`${red}Error generating QR code:${reset}`, err);
+            }
+        });
+    }
 
     client.on("ready", async () => {
         console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
@@ -102,9 +126,9 @@ async function clientInitialization(clientId, client, socket) {
             { merge: true }
         );
         console.log("phone: ", client["info"]["wid"]["user"]);
-        socket.emit("ready", {
+        socket?.emit("ready", {
             clientId: clientId,
-            username: socket.username
+            username: socket?.username
         });
     });
 
@@ -122,8 +146,8 @@ async function clientInitialization(clientId, client, socket) {
             },
             { merge: true }
         );
-        socket.emit("session", "");
-        socket.emit("username", "");
+        socket?.emit("session", "");
+        socket?.emit("username", "");
     });
 
     client.on("message", async (message) => {
@@ -146,11 +170,11 @@ async function clientInitialization(clientId, client, socket) {
             if (message.hasMedia) {
                 const media = await message.downloadMedia();
                 const newMsg = { ...msg, media };
-                socket.emit("message", newMsg);
+                socket?.emit("message", newMsg);
                 return;
             }
 
-            socket.emit("message", msg);
+            socket?.emit("message", msg);
         } catch (err) {
             console.log("Error: ", err.message);
         }

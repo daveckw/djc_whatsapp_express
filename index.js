@@ -11,7 +11,7 @@ const { MessageMedia } = require("whatsapp-web.js");
 
 const multer = require("multer");
 const { firestore } = require("./firebase");
-const { restartClient } = require("./helpers/restartClient");
+const { initializeClient } = require("./client");
 
 const upload = multer();
 
@@ -60,7 +60,8 @@ let clients = {};
 const getWhatsAppClients = async () => {
     const collectionRef = firestore
         .collection("whatsappClients")
-        .where("status", "==", "ready");
+        .where("status", "==", "ready")
+        .where("clientId", "==", "acepropertygsgmailcom");
 
     try {
         const snapshot = await collectionRef.get();
@@ -69,14 +70,14 @@ const getWhatsAppClients = async () => {
         });
         clientIds.forEach(async (clientId) => {
             console.log("clientId: ", clientId);
-            restartClient(clientId, clients);
+            clients[clientId] = initializeClient(clientId);
         });
     } catch (error) {
         console.error("Error getting documents: ", error);
     }
 };
 
-if (process.env.NODE_ENV !== "development") {
+if (process.env.NODE_ENV !== "") {
     getWhatsAppClients();
 }
 
