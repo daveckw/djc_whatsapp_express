@@ -128,10 +128,6 @@ app.post(
         body("from").notEmpty()
     ],
     async (req, res) => {
-        console.log("--------sending-------");
-        console.log("number: ", req.body.number);
-        console.log("message: ", req.body.message);
-        console.log("from: ", req.body.from);
         const errors = validationResult(req).formatWith(({ msg }) => {
             return msg;
         });
@@ -146,6 +142,21 @@ app.post(
         const number = phoneNumberFormatter(req.body.number);
         const message = req.body.message;
         const from = req.body.from;
+
+        console.log("--------sending-------");
+        console.log("number: ", number);
+        console.log("message: ", message);
+        console.log("from: ", from);
+
+        if (!clients[from]) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
 
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
@@ -218,6 +229,17 @@ app.post(
         );
         const from = req.body.from;
         const caption = req.body.caption;
+
+        if (!clients[from]) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
+
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
             clients[from]
@@ -276,8 +298,17 @@ app.post(
         console.log("from: ", req.body.from);
         console.log("message: ", "Attachment");
 
-        const downloadURL = req.body.downloadURL;
+        if (!clients[from]) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
 
+        const downloadURL = req.body.downloadURL;
         const number = phoneNumberFormatter(req.body.number);
         const message = await MessageMedia.fromUrl(downloadURL);
         const from = req.body.from;
