@@ -69,7 +69,7 @@ const getWhatsAppClients = async () => {
         });
         clientIds.forEach(async (clientId) => {
             console.log("clientId: ", clientId);
-            clients[clientId] = initializeClient(clientId);
+            clients[clientId] = await initializeClient(clientId);
         });
     } catch (error) {
         console.error("Error getting documents: ", error);
