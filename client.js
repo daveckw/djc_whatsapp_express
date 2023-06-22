@@ -3,7 +3,6 @@ const { MongoStore } = require("wwebjs-mongo");
 const mongoose = require("mongoose");
 const qrcode = require("qrcode");
 const { firestore } = require("./firebase");
-const axios = require("axios");
 const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
 
@@ -198,9 +197,9 @@ async function clientInitialization(clientId, client, socket) {
                 date: new Date(message.timestamp * 1000),
                 from: message.from,
                 to: message.to,
-                name: message._data.notifyName,
-                type: message._data.type,
-                body: message.body,
+                name: message._data.notifyName || "",
+                type: message._data.type || "",
+                body: message.body || "",
                 clientId,
                 chatRoomId
             };
