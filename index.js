@@ -293,10 +293,17 @@ app.post(
             });
         }
 
+        const downloadURL = req.body.downloadURL;
+        const number = phoneNumberFormatter(req.body.number);
+        const from = req.body.from;
+        const caption = req.body.caption;
+
         console.log("--------sending-------");
-        console.log("number: ", req.body.number);
-        console.log("from: ", req.body.from);
+        console.log("number: ", number);
+        console.log("from: ", from);
         console.log("message: ", "Attachment");
+
+        const message = await MessageMedia.fromUrl(downloadURL);
 
         if (!clients[from]) {
             console.log(
@@ -308,11 +315,6 @@ app.post(
             });
         }
 
-        const downloadURL = req.body.downloadURL;
-        const number = phoneNumberFormatter(req.body.number);
-        const message = await MessageMedia.fromUrl(downloadURL);
-        const from = req.body.from;
-        const caption = req.body.caption;
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
             clients[from]
