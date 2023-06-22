@@ -204,6 +204,7 @@ async function clientInitialization(clientId, client, socket) {
                 clientId,
                 chatRoomId
             };
+            console.log(whatsappMessage);
 
             console.log("Type: ", whatsappMessage.type);
             if (whatsappMessage.type === "chat") {
