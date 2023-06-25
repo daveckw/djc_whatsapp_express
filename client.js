@@ -194,7 +194,7 @@ async function clientInitialization(clientId, client, socket) {
                     extractNumbers(message.from);
             }
             const whatsappMessage = {
-                date: new Date(message.timestamp * 1000) || new Date(),
+                date: new Date(),
                 from: message.from,
                 to: message.to,
                 name: message._data.notifyName || "",
