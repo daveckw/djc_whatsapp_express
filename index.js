@@ -34,8 +34,7 @@ const io = new Server(server, {
             "https://app.djc.ai",
             "https://djcsystem.com"
         ], // Replace with your React app's URL
-        methods: ["GET", "POST"],
-        credentials: true
+        methods: ["GET", "POST"]
     }
 });
 

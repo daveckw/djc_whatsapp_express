@@ -7,7 +7,7 @@ const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
 
 const authenticatioMethod = "local"; // local or remote
-const URI = "";
+const URI = process.env.MONGODB_URI;
 
 const reset = "\x1b[0m";
 const red = "\x1b[31m";
@@ -38,9 +38,9 @@ exports.initializeClient = async (clientId, socket) => {
             });
             return await clientInitialization(clientId, client, socket);
         } else if (authenticatioMethod === "remote") {
-            console.log("Connecting to MongoDB...");
+            console.log("Connecting to MongoDB...", clientId);
             await mongoose.connect(URI);
-            console.log("Connected to MongoDB");
+            console.log("Connected to MongoDB", clientId);
             const store = new MongoStore({ mongoose: mongoose });
             const client = new Client({
                 authStrategy: new RemoteAuth({
@@ -199,7 +199,7 @@ async function clientInitialization(clientId, client, socket) {
                 to: message.to,
                 name: message._data.notifyName || "",
                 type: message._data.type || "",
-                body: message.body || "",
+                body: typeof message.body === "string" ? message.body : "",
                 clientId,
                 chatRoomId
             };
