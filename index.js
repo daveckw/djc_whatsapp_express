@@ -11,6 +11,7 @@ const multer = require("multer");
 const { firestore } = require("./firebase");
 const { initializeClient } = require("./client");
 const { checkConnection } = require("./helpers/checkConnection");
+const { getInstanceName } = require("./utils-functions/checkVM");
 
 const upload = multer();
 
@@ -413,7 +414,19 @@ server.on("connection", (conn) => {
     conn.on("close", () => connections.delete(conn));
 });
 
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
+    const instanceName = await getInstanceName();
+    const collectionRef = firestore
+        .collection("whatsappClients")
+        .where("instanceName", "==", instanceName);
+    const snapshot = await collectionRef.get();
+    if (!snapshot.empty) {
+        snapshot.docs.forEach(async (doc) => {
+            const docRef = firestore.collection("whatsappClients").doc(doc.id);
+            await docRef.update({ status: "disconnected" });
+            console.log(`${doc.id} is disconnected.`);
+        });
+    }
     console.log("\nShutting down gracefully...");
 
     // Close all connections
