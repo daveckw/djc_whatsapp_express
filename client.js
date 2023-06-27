@@ -13,7 +13,7 @@ const reset = "\x1b[0m";
 const red = "\x1b[31m";
 const green = "\x1b[32m";
 
-exports.initializeClient = async (clientId, socket) => {
+exports.initializeClient = async (clientId, init = false) => {
     try {
         // Create a new Whatspapp client instance
         console.log(`Initialising client ${clientId}`);
@@ -27,7 +27,6 @@ exports.initializeClient = async (clientId, socket) => {
                     headless: true,
                     args: [
                         "--no-sandbox",
-                        "--no-sandbox",
                         "--disable-setuid-sandbox",
                         "--disable-dev-shm-usage",
                         "--disable-accelerated-2d-canvas",
@@ -36,7 +35,7 @@ exports.initializeClient = async (clientId, socket) => {
                     ]
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, socket);
+            return await clientInitialization(clientId, client, init);
         } else if (authenticatioMethod === "remote") {
             console.log("Connecting to MongoDB...", clientId);
             await mongoose.connect(URI);
@@ -61,7 +60,7 @@ exports.initializeClient = async (clientId, socket) => {
                     timeout: 60000
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, socket);
+            return await clientInitialization(clientId, client, init);
         }
     } catch (err) {
         console.log(err);
@@ -69,22 +68,38 @@ exports.initializeClient = async (clientId, socket) => {
     }
 };
 
-async function clientInitialization(clientId, client, socket) {
+async function clientInitialization(clientId, client, init) {
     let qrCount = {};
-    if (socket) {
+    if (init) {
         client.on("qr", async (qr) => {
             if (!qrCount[clientId]) qrCount[clientId] = 1;
             try {
                 const dataUrl = await qrcode.toDataURL(qr);
                 console.log(`${qrCount[clientId]}: QR code generated`);
                 qrCount[clientId]++;
+
+                const docRef = firestore
+                    .collection("whatsappClients")
+                    .doc(clientId);
+
                 if (qrCount[clientId] > 2) {
                     console.log("Times out. Destroying client ", clientId);
                     client.destroy();
-                    socket?.emit("qr", "");
+                    await docRef.set(
+                        { date: new Date(), qr: "" },
+                        { merge: true }
+                    );
                     qrCount[clientId] = 0;
                 } else {
-                    socket?.emit("qr", dataUrl);
+                    try {
+                        // set QR code to firestore
+                        await docRef.update(
+                            { date: new Date(), qr: dataUrl },
+                            { merge: true }
+                        );
+                    } catch (error) {
+                        console.error("Error getting doc ", error);
+                    }
                 }
             } catch (err) {
                 console.error(`${red}Error generating QR code:${reset}`, err);
@@ -125,10 +140,6 @@ async function clientInitialization(clientId, client, socket) {
             { merge: true }
         );
         console.log("phone: ", client["info"]["wid"]["user"]);
-        socket?.emit("ready", {
-            clientId: clientId,
-            username: socket?.username
-        });
     });
 
     client.on("auth_failure", (msg) => {
@@ -145,8 +156,6 @@ async function clientInitialization(clientId, client, socket) {
             },
             { merge: true }
         );
-        socket?.emit("session", "");
-        socket?.emit("username", "");
     });
 
     client.on("message", async (message) => {
@@ -169,11 +178,8 @@ async function clientInitialization(clientId, client, socket) {
             if (message.hasMedia) {
                 const media = await message.downloadMedia();
                 const newMsg = { ...msg, media };
-                socket?.emit("message", newMsg);
                 return;
             }
-
-            socket?.emit("message", msg);
         } catch (err) {
             console.log("Error: ", err.message);
         }

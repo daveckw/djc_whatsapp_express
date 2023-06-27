@@ -1,13 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
 const cors = require("cors");
 const { body, check, validationResult } = require("express-validator");
-const { chat } = require("./chat");
 const { phoneNumberFormatter } = require("./helpers/formatter");
 const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
 const { MessageMedia } = require("whatsapp-web.js");
+const http = require("http");
 
 const multer = require("multer");
 const { firestore } = require("./firebase");
@@ -27,16 +25,6 @@ app.use(
 );
 
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: [
-            "http://localhost:3000",
-            "https://app.djc.ai",
-            "https://djcsystem.com"
-        ], // Replace with your React app's URL
-        methods: ["GET", "POST"]
-    }
-});
 
 const reset = "\x1b[0m";
 const red = "\x1b[31m";
@@ -46,16 +34,8 @@ app.get("/", (req, res) => {
     res.sendFile(__dirname + "/index.html");
 });
 
-io.use((socket, next) => {
-    const username = socket.handshake.auth.username;
-    if (!username) {
-        return next(new Error("invalid username"));
-    }
-    socket.username = username;
-    next();
-});
-
 let clients = {};
+
 const getWhatsAppClients = async () => {
     const collectionRef = firestore
         .collection("whatsappClients")
@@ -79,43 +59,50 @@ if (process.env.NODE_ENV !== "development") {
     getWhatsAppClients();
 }
 
-io.on("connection", (socket) => {
-    console.log("A user: " + socket.username + " connected");
-    io.emit("connection", "A user connected");
-    io.emit("username", socket.username);
-
-    chat(socket, clients); // Initialise client
-
-    socket.on("disconnect", () => {
-        console.log(socket.username + " user disconnected");
-        io.emit("session", "");
+app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
+    const errors = validationResult(req).formatWith(({ msg }) => {
+        return msg;
     });
-});
 
-let connections = new Set();
-
-server.on("connection", (conn) => {
-    connections.add(conn);
-    conn.on("close", () => connections.delete(conn));
-});
-
-process.on("SIGINT", () => {
-    console.log("\nShutting down gracefully...");
-
-    // Emit a 'shutdown' event to the React app via Socket.IO
-    io.emit("session", "");
-    io.emit("username", "");
-
-    // Close all connections
-    for (let conn of connections) {
-        conn.end();
+    if (!errors.isEmpty()) {
+        return res.status(422).json({
+            status: false,
+            message: errors.mapped()
+        });
     }
 
-    // Close the server
-    server.close(() => {
-        console.log("Server closed.");
-        process.exit(0);
-    });
+    const clientId = req.body.clientId;
+
+    if (clients[clientId]) {
+        try {
+            const state = await clients[clientId]?.getState();
+            if (
+                clientId === clients[clientId].options.authStrategy.clientId &&
+                state === "CONNECTED"
+            ) {
+                console.log(`Client ${clientId} already started`);
+                res.status(200).json({
+                    status: `Client ${clientId} already started`
+                });
+                return;
+            }
+        } catch (err) {
+            console.log(err.message);
+        }
+    }
+
+    try {
+        clients[clientId] = await initializeClient(clientId, true);
+        console.log("clientId: ", clientId + " started");
+        res.status(200).json({
+            status: `Client ${clientId} started`
+        });
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).json({
+            status: "Something went wrong"
+        });
+    }
 });
 
 // Send message
@@ -411,8 +398,30 @@ process.on("uncaughtException", (err, origin) => {
     );
 });
 
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason) => {
     console.log(`${red}Unhandled Rejection.${reset}`, reason);
+});
+
+let connections = new Set();
+
+server.on("connection", (conn) => {
+    connections.add(conn);
+    conn.on("close", () => connections.delete(conn));
+});
+
+process.on("SIGINT", () => {
+    console.log("\nShutting down gracefully...");
+
+    // Close all connections
+    for (let conn of connections) {
+        conn.end();
+    }
+
+    // Close the server
+    server.close(() => {
+        console.log("Server closed.");
+        process.exit(0);
+    });
 });
 
 server.listen(port, () => {
