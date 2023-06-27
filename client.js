@@ -231,8 +231,6 @@ async function clientInitialization(clientId, client, socket) {
                     console.log("Error: ", err.message);
                 }
             }
-
-            // whatsappApp(whatsappMessage);
         } catch (err) {
             console.log("Error: ", err.message);
         }
@@ -248,25 +246,3 @@ async function clientInitialization(clientId, client, socket) {
         return null;
     }
 }
-
-// function whatsappApp(whatsappMessage) {
-//     let data = JSON.stringify(whatsappMessage);
-
-//     let config = {
-//         method: "post",
-//         maxBodyLength: Infinity,
-//         url: "http://127.0.0.1:5001/facebook-api-59e5c/asia-east2/whatsappApp",
-//         headers: {
-//             "Content-Type": "application/json"
-//         },
-//         data: data
-//     };
-
-//     console.log("Sending to whatsappApp");
-//     axios
-//         .request(config)
-//         .then((response) => {})
-//         .catch((error) => {
-//             console.log(`${red}${error.message}${reset}`);
-//         });
-// }
