@@ -106,7 +106,7 @@ async function clientInitialization(clientId, client, init) {
             }
         });
     } else {
-        client.on("qr", async (qr) => {
+        client.on("qr", async () => {
             try {
                 // const dataUrl = await qrcode.toDataURL(qr);
                 firestore.collection("whatsappClients").doc(clientId).set(
@@ -135,6 +135,7 @@ async function clientInitialization(clientId, client, init) {
             {
                 clientId: clientId,
                 status: "ready",
+                qr: "",
                 date: new Date()
             },
             { merge: true }

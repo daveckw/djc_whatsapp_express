@@ -10,6 +10,7 @@ const http = require("http");
 const multer = require("multer");
 const { firestore } = require("./firebase");
 const { initializeClient } = require("./client");
+const { checkConnection } = require("./helpers/checkConnection");
 
 const upload = multer();
 
@@ -73,30 +74,32 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
 
     const clientId = req.body.clientId;
 
-    if (clients[clientId]) {
-        try {
-            const state = await clients[clientId]?.getState();
-            if (
-                clientId === clients[clientId].options.authStrategy.clientId &&
-                state === "CONNECTED"
-            ) {
-                console.log(`Client ${clientId} already started`);
-                res.status(200).json({
-                    status: `Client ${clientId} already started`
-                });
-                return;
-            }
-        } catch (err) {
-            console.log(err.message);
-        }
+    const connection = await checkConnection(clients, clientId);
+
+    if (connection) {
+        res.status(200).json({
+            status: `Client ${clientId} already started`,
+            clientId: clientId
+        });
+        return;
     }
 
     try {
         clients[clientId] = await initializeClient(clientId, true);
-        console.log("clientId: ", clientId + " started");
-        res.status(200).json({
-            status: `Client ${clientId} started`
-        });
+        const connection = await checkConnection(clients, clientId);
+        if (connection) {
+            console.log(`${green}clientId: ${clientId} started${reset}`);
+            res.status(200).json({
+                status: `Client ${clientId} started`,
+                clientId: clientId
+            });
+        } else {
+            console.log(`${red}clientId: ${clientId} failed to start${reset}`);
+            res.status(200).json({
+                status: `Client ${clientId} failed to start`,
+                clientId: ""
+            });
+        }
     } catch (err) {
         console.log(err.message);
         res.status(500).json({
@@ -134,7 +137,8 @@ app.post(
         console.log("message: ", message);
         console.log("from: ", from);
 
-        if (!clients[from]) {
+        const connection = await checkConnection(clients, from);
+        if (!connection) {
             console.log(
                 `${red}${from} is not activated. Please check your DJC System\n${reset}`
             );
