@@ -5,6 +5,7 @@ const qrcode = require("qrcode");
 const { firestore } = require("./firebase");
 const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
+const { getInstanceName } = require("./utils-functions/checkVM");
 
 const authenticatioMethod = "local"; // local or remote
 const URI = process.env.MONGODB_URI;
@@ -69,7 +70,9 @@ exports.initializeClient = async (clientId, init = false) => {
 };
 
 async function clientInitialization(clientId, client, init) {
+    const instanceName = await getInstanceName();
     let qrCount = {};
+
     if (init) {
         client.on("qr", async (qr) => {
             if (!qrCount[clientId]) qrCount[clientId] = 1;
@@ -86,7 +89,11 @@ async function clientInitialization(clientId, client, init) {
                     console.log("Times out. Destroying client ", clientId);
                     client.destroy();
                     await docRef.set(
-                        { date: new Date(), qr: "" },
+                        {
+                            date: new Date(),
+                            qr: "",
+                            instanceName
+                        },
                         { merge: true }
                     );
                     qrCount[clientId] = 0;
@@ -94,7 +101,11 @@ async function clientInitialization(clientId, client, init) {
                     try {
                         // set QR code to firestore
                         await docRef.update(
-                            { date: new Date(), qr: dataUrl },
+                            {
+                                date: new Date(),
+                                qr: dataUrl,
+                                instanceName
+                            },
                             { merge: true }
                         );
                     } catch (error) {
@@ -136,7 +147,8 @@ async function clientInitialization(clientId, client, init) {
                 clientId: clientId,
                 status: "ready",
                 qr: "",
-                date: new Date()
+                date: new Date(),
+                instanceName
             },
             { merge: true }
         );
@@ -213,6 +225,9 @@ async function clientInitialization(clientId, client, init) {
             console.log(whatsappMessage);
 
             console.log("Type: ", whatsappMessage.type);
+
+            if (process.env.NODE_ENV === "development") return;
+
             if (whatsappMessage.type === "chat") {
                 try {
                     firestore
