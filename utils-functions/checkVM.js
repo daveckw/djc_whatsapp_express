@@ -15,23 +15,28 @@ function getInstanceName() {
             }
         };
 
-        const req = http.request(options, (res) => {
-            let data = "";
-            res.setEncoding("utf8");
-            res.on("data", (chunk) => {
-                data += chunk;
+        try {
+            const req = http.request(options, (res) => {
+                let data = "";
+                res.setEncoding("utf8");
+                res.on("data", (chunk) => {
+                    data += chunk;
+                });
+                res.on("end", () => {
+                    resolve(data);
+                });
             });
-            res.on("end", () => {
-                resolve(data);
+
+            req.on("error", (error) => {
+                console.error(error);
+                reject(error.message);
             });
-        });
 
-        req.on("error", (error) => {
-            console.error(error);
-            reject(error);
-        });
-
-        req.end();
+            req.end();
+        } catch (err) {
+            console.log("Error: ", err.message);
+            reject("error");
+        }
     });
 }
 

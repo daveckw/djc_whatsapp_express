@@ -61,6 +61,30 @@ if (process.env.NODE_ENV !== "development") {
     getWhatsAppClients();
 }
 
+let connections = new Set();
+
+server.on("connection", (conn) => {
+    connections.add(conn);
+    conn.on("close", () => connections.delete(conn));
+});
+
+process.on("SIGINT", () => {
+    console.log("SIGINT triggered");
+
+    console.log("\nShutting down gracefully...");
+
+    // Close all connections
+    for (let conn of connections) {
+        conn.end();
+    }
+
+    // Close the server
+    server.close(() => {
+        console.log("Server closed.");
+        process.exit(0);
+    });
+});
+
 app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
     const errors = validationResult(req).formatWith(({ msg }) => {
         return msg;
@@ -89,21 +113,20 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
         clients[clientId] = await initializeClient(clientId, true);
         const connection = await checkConnection(clients, clientId);
         if (connection) {
-            console.log(`${green}clientId: ${clientId} started${reset}`);
-            res.status(200).json({
+            return res.status(200).json({
                 status: `Client ${clientId} started`,
                 clientId: clientId
             });
         } else {
             console.log(`${red}clientId: ${clientId} failed to start${reset}`);
-            res.status(200).json({
+            return res.status(200).json({
                 status: `Client ${clientId} failed to start`,
                 clientId: ""
             });
         }
     } catch (err) {
         console.log(err.message);
-        res.status(500).json({
+        return res.status(500).json({
             status: "Something went wrong"
         });
     }
@@ -405,40 +428,6 @@ process.on("uncaughtException", (err, origin) => {
 
 process.on("unhandledRejection", (reason) => {
     console.log(`${red}Unhandled Rejection.${reset}`, reason);
-});
-
-let connections = new Set();
-
-server.on("connection", (conn) => {
-    connections.add(conn);
-    conn.on("close", () => connections.delete(conn));
-});
-
-process.on("SIGINT", async () => {
-    const instanceName = await getInstanceName();
-    const collectionRef = firestore
-        .collection("whatsappClients")
-        .where("instanceName", "==", instanceName);
-    const snapshot = await collectionRef.get();
-    if (!snapshot.empty) {
-        snapshot.docs.forEach(async (doc) => {
-            const docRef = firestore.collection("whatsappClients").doc(doc.id);
-            await docRef.update({ status: "disconnected" });
-            console.log(`${doc.id} is disconnected.`);
-        });
-    }
-    console.log("\nShutting down gracefully...");
-
-    // Close all connections
-    for (let conn of connections) {
-        conn.end();
-    }
-
-    // Close the server
-    server.close(() => {
-        console.log("Server closed.");
-        process.exit(0);
-    });
 });
 
 server.listen(port, () => {
