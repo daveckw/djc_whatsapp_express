@@ -33,7 +33,7 @@ const red = "\x1b[31m";
 const green = "\x1b[32m";
 
 app.get("/", (req, res) => {
-    res.sendFile(__dirname + "/index.html");
+    res.status(200).sendFile(__dirname + "/index.html");
 });
 
 let clients = {};
