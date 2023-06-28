@@ -8,3 +8,4 @@ node-v18.16.0-x64.msi
 node-v18.16.0.pkg
 private
 .env
+dockerscripts.md

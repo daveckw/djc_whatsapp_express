@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: djc-whatsapp-deployment
+spec:
+  selector:
+    matchLabels:
+      app: djc-whatsapp-deployment
+  template:
+    metadata:
+      labels:
+        app: djc-whatsapp-deployment
+    spec:
+      containers:
+      - name: djc-whatsapp
+        image: gcr.io/djc-whatsapp/djc_whatsapp:v2
