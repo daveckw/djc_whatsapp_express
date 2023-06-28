@@ -39,9 +39,11 @@ app.get("/", (req, res) => {
 let clients = {};
 
 const getWhatsAppClients = async () => {
+    const instanceName = await getInstanceName();
     const collectionRef = firestore
         .collection("whatsappClients")
-        .where("status", "==", "ready");
+        .where("status", "==", "ready")
+        .where("instanceName", "==", instanceName);
 
     try {
         const snapshot = await collectionRef.get();
