@@ -404,6 +404,11 @@ app.post("/check-clients", async (req, res) => {
                 }
             })
         );
+        Object.keys(status).forEach((key) => {
+            if (status[key] === "disconnected") {
+                delete clients[key];
+            }
+        });
         console.log("Number of connected clients: ", numberOfConnectedClients);
         res.status(200).json({
             status: true,
