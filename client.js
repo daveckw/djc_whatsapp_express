@@ -2,13 +2,19 @@ const { Client, LocalAuth, RemoteAuth } = require("whatsapp-web.js");
 const { MongoStore } = require("wwebjs-mongo");
 const mongoose = require("mongoose");
 const qrcode = require("qrcode");
-// const { firestore } = require("./firebase");
+const { firestore } = require("./firebase");
+const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
+const { getInstanceName } = require("./utils-functions/checkVM");
 
 const authenticatioMethod = "local"; // local or remote
-const URI = "";
+const URI = process.env.MONGODB_URI;
 
-exports.initializeClient = async (clientId, socket) => {
+const reset = "\x1b[0m";
+const red = "\x1b[31m";
+const green = "\x1b[32m";
+
+exports.initializeClient = async (clientId, init = false) => {
     try {
         // Create a new Whatspapp client instance
         console.log(`Initialising client ${clientId}`);
@@ -22,7 +28,6 @@ exports.initializeClient = async (clientId, socket) => {
                     headless: true,
                     args: [
                         "--no-sandbox",
-                        "--no-sandbox",
                         "--disable-setuid-sandbox",
                         "--disable-dev-shm-usage",
                         "--disable-accelerated-2d-canvas",
@@ -31,11 +36,11 @@ exports.initializeClient = async (clientId, socket) => {
                     ]
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, socket);
+            return await clientInitialization(clientId, client, init);
         } else if (authenticatioMethod === "remote") {
-            console.log("Connecting to MongoDB...");
+            console.log("Connecting to MongoDB...", clientId);
             await mongoose.connect(URI);
-            console.log("Connected to MongoDB");
+            console.log("Connected to MongoDB", clientId);
             const store = new MongoStore({ mongoose: mongoose });
             const client = new Client({
                 authStrategy: new RemoteAuth({
@@ -56,7 +61,7 @@ exports.initializeClient = async (clientId, socket) => {
                     timeout: 60000
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, socket);
+            return await clientInitialization(clientId, client, init);
         }
     } catch (err) {
         console.log(err);
@@ -64,31 +69,90 @@ exports.initializeClient = async (clientId, socket) => {
     }
 };
 
-async function clientInitialization(clientId, client, socket) {
-    client.on("qr", async (qr) => {
-        try {
-            const dataUrl = await qrcode.toDataURL(qr);
-            console.log("QR code generated");
-            socket.emit("qr", dataUrl);
-        } catch (err) {
-            console.error("Error generating QR code:", err);
-        }
-    });
+async function clientInitialization(clientId, client, init) {
+    const instanceName = await getInstanceName();
+    let qrCount = {};
 
-    client.on("ready", () => {
-        console.log(`Whatsapp Client ${clientId} is ready!`);
-        // firestore.collection("whatsappClients").doc(clientId).set(
-        //     {
-        //         clientId: clientId,
-        //         status: "ready",
-        //         date: new Date()
-        //     },
-        //     { merge: true }
-        // );
-        socket.emit("ready", {
-            clientId: clientId,
-            username: socket.username
+    if (init) {
+        client.on("qr", async (qr) => {
+            if (!qrCount[clientId]) qrCount[clientId] = 1;
+            try {
+                const dataUrl = await qrcode.toDataURL(qr);
+                console.log(`${qrCount[clientId]}: QR code generated`);
+                qrCount[clientId]++;
+
+                const docRef = firestore
+                    .collection("whatsappClients")
+                    .doc(clientId);
+
+                if (qrCount[clientId] > 2) {
+                    console.log("Times out. Destroying client ", clientId);
+                    client.destroy();
+                    await docRef.set(
+                        {
+                            date: new Date(),
+                            qr: "",
+                            instanceName
+                        },
+                        { merge: true }
+                    );
+                    qrCount[clientId] = 0;
+                } else {
+                    try {
+                        // set QR code to firestore
+                        await docRef.update(
+                            {
+                                date: new Date(),
+                                qr: dataUrl,
+                                instanceName
+                            },
+                            { merge: true }
+                        );
+                    } catch (error) {
+                        console.error("Error getting doc ", error);
+                    }
+                }
+            } catch (err) {
+                console.error(`${red}Error generating QR code:${reset}`, err);
+            }
         });
+    } else {
+        client.on("qr", async () => {
+            try {
+                // const dataUrl = await qrcode.toDataURL(qr);
+                firestore.collection("whatsappClients").doc(clientId).set(
+                    {
+                        clientId: clientId,
+                        status: "disconnected",
+                        date: new Date()
+                    },
+                    { merge: true }
+                );
+                client.destroy();
+                console.log(
+                    "QR code generated for client at restartClient:",
+                    clientId,
+                    "disconnecting client. Reconnect using web interface."
+                );
+            } catch (err) {
+                console.error(`${red}Error generating QR code:${reset}`, err);
+            }
+        });
+    }
+
+    client.on("ready", async () => {
+        console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
+        firestore.collection("whatsappClients").doc(clientId).set(
+            {
+                clientId: clientId,
+                status: "ready",
+                qr: "",
+                date: new Date(),
+                instanceName
+            },
+            { merge: true }
+        );
+        console.log("phone: ", client["info"]["wid"]["user"]);
     });
 
     client.on("auth_failure", (msg) => {
@@ -97,16 +161,14 @@ async function clientInitialization(clientId, client, socket) {
 
     client.on("disconnected", (reason) => {
         console.log("Client disconnected:", reason);
-        // firestore.collection("whatsappClients").doc(clientId).set(
-        //     {
-        //         clientId: clientId,
-        //         status: "disconnected",
-        //         date: new Date()
-        //     },
-        //     { merge: true }
-        // );
-        socket.emit("session", "");
-        socket.emit("username", "");
+        firestore.collection("whatsappClients").doc(clientId).set(
+            {
+                clientId: clientId,
+                status: "disconnected",
+                date: new Date()
+            },
+            { merge: true }
+        );
     });
 
     client.on("message", async (message) => {
@@ -129,27 +191,8 @@ async function clientInitialization(clientId, client, socket) {
             if (message.hasMedia) {
                 const media = await message.downloadMedia();
                 const newMsg = { ...msg, media };
-                socket.emit("message", newMsg);
                 return;
             }
-
-            const whatsappMessage = {
-                date: new Date(message.timestamp * 1000),
-                from: message.from,
-                to: message.to,
-                name: message._data.notifyName,
-                type: message._data.type,
-                body: message.body
-            };
-            socket.emit("message", msg);
-
-            // firestore
-            //     .collection("whatsappMessages")
-            //     .doc(clientId)
-            //     .collection("messages")
-            //     .doc(dateToString(whatsappMessage.date))
-            //     .set(whatsappMessage, { merge: true });
-            // console.log("Message saved to firestore");
         } catch (err) {
             console.log("Error: ", err.message);
         }
@@ -157,21 +200,59 @@ async function clientInitialization(clientId, client, socket) {
 
     client.on("message_create", async (message) => {
         try {
+            let chatRoomId = "";
+            if (message.fromMe) {
+                chatRoomId =
+                    extractNumbers(message.from) +
+                    "-" +
+                    extractNumbers(message.to);
+            } else {
+                chatRoomId =
+                    extractNumbers(message.to) +
+                    "-" +
+                    extractNumbers(message.from);
+            }
             const whatsappMessage = {
-                date: new Date(message.timestamp * 1000),
+                date: new Date(),
                 from: message.from,
                 to: message.to,
-                name: message._data.notifyName,
-                type: message._data.type,
-                body: message.body
+                name: message._data.notifyName || "",
+                type: message._data.type || "",
+                body: typeof message.body === "string" ? message.body : "",
+                clientId,
+                chatRoomId
             };
-            // firestore
-            //     .collection("whatsappMessages")
-            //     .doc(clientId)
-            //     .collection("messages")
-            //     .doc(dateToString(whatsappMessage.date))
-            //     .set(whatsappMessage, { merge: true });
-            // console.log("Message saved to firestore");
+            console.log(whatsappMessage);
+
+            console.log("Type: ", whatsappMessage.type);
+
+            if (process.env.NODE_ENV === "development") return;
+
+            if (whatsappMessage.type === "chat") {
+                try {
+                    firestore
+                        .collection("whatsappMessages")
+                        .doc(chatRoomId)
+                        .collection("messages")
+                        .doc(dateToString(whatsappMessage.date))
+                        .set(whatsappMessage, { merge: true });
+                    firestore
+                        .collection("whatsappMessages")
+                        .doc(chatRoomId)
+                        .set(
+                            {
+                                date: whatsappMessage.date,
+                                chatRoomId,
+                                clientId
+                            },
+                            { merge: true }
+                        );
+                    console.log("Message saved to firestore");
+                } catch (err) {
+                    console.log(`${red}Error saving to Firestore${reset}`);
+                    console.log("Error: ", err.message);
+                }
+            }
         } catch (err) {
             console.log("Error: ", err.message);
         }
@@ -181,7 +262,9 @@ async function clientInitialization(clientId, client, socket) {
         await client.initialize();
         return client;
     } catch (err) {
-        console.error("Client initialization error:", err);
+        console.log(
+            `${red}Client initialization error: ${err.message}${reset}`
+        );
         return null;
     }
 }

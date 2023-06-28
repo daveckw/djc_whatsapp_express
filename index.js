@@ -1,14 +1,17 @@
+require("dotenv").config();
 const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
 const cors = require("cors");
 const { body, check, validationResult } = require("express-validator");
-const { chat } = require("./chat");
 const { phoneNumberFormatter } = require("./helpers/formatter");
 const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
 const { MessageMedia } = require("whatsapp-web.js");
+const http = require("http");
 
 const multer = require("multer");
+const { firestore } = require("./firebase");
+const { initializeClient } = require("./client");
+const { checkConnection } = require("./helpers/checkConnection");
+const { getInstanceName } = require("./utils-functions/checkVM");
 
 const upload = multer();
 
@@ -24,17 +27,6 @@ app.use(
 );
 
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: [
-            "http://localhost:3000",
-            "https://app.djc.ai",
-            "https://djcsystem.com"
-        ], // Replace with your React app's URL
-        methods: ["GET", "POST"],
-        credentials: true
-    }
-});
 
 const reset = "\x1b[0m";
 const red = "\x1b[31m";
@@ -44,29 +36,30 @@ app.get("/", (req, res) => {
     res.sendFile(__dirname + "/index.html");
 });
 
-io.use((socket, next) => {
-    const username = socket.handshake.auth.username;
-    if (!username) {
-        return next(new Error("invalid username"));
-    }
-    socket.username = username;
-    next();
-});
-
 let clients = {};
 
-io.on("connection", (socket) => {
-    console.log("A user: " + socket.username + " connected");
-    io.emit("connection", "A user connected");
-    io.emit("username", socket.username);
+const getWhatsAppClients = async () => {
+    const collectionRef = firestore
+        .collection("whatsappClients")
+        .where("status", "==", "ready");
 
-    chat(socket, clients); // Initialise client
+    try {
+        const snapshot = await collectionRef.get();
+        const clientIds = snapshot.docs.map((doc) => {
+            return doc.id;
+        });
+        clientIds.forEach(async (clientId) => {
+            console.log("clientId: ", clientId);
+            clients[clientId] = await initializeClient(clientId);
+        });
+    } catch (error) {
+        console.error("Error getting documents: ", error);
+    }
+};
 
-    socket.on("disconnect", () => {
-        console.log(socket.username + " user disconnected");
-        io.emit("session", "");
-    });
-});
+if (process.env.NODE_ENV !== "development") {
+    getWhatsAppClients();
+}
 
 let connections = new Set();
 
@@ -76,11 +69,9 @@ server.on("connection", (conn) => {
 });
 
 process.on("SIGINT", () => {
-    console.log("\nShutting down gracefully...");
+    console.log("SIGINT triggered");
 
-    // Emit a 'shutdown' event to the React app via Socket.IO
-    io.emit("session", "");
-    io.emit("username", "");
+    console.log("\nShutting down gracefully...");
 
     // Close all connections
     for (let conn of connections) {
@@ -94,6 +85,53 @@ process.on("SIGINT", () => {
     });
 });
 
+app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
+    const errors = validationResult(req).formatWith(({ msg }) => {
+        return msg;
+    });
+
+    if (!errors.isEmpty()) {
+        return res.status(422).json({
+            status: false,
+            message: errors.mapped()
+        });
+    }
+
+    const clientId = req.body.clientId;
+
+    const connection = await checkConnection(clients, clientId);
+
+    if (connection) {
+        res.status(200).json({
+            status: `Client ${clientId} already started`,
+            clientId: clientId
+        });
+        return;
+    }
+
+    try {
+        clients[clientId] = await initializeClient(clientId, true);
+        const connection = await checkConnection(clients, clientId);
+        if (connection) {
+            return res.status(200).json({
+                status: `Client ${clientId} started`,
+                clientId: clientId
+            });
+        } else {
+            console.log(`${red}clientId: ${clientId} failed to start${reset}`);
+            return res.status(200).json({
+                status: `Client ${clientId} failed to start`,
+                clientId: ""
+            });
+        }
+    } catch (err) {
+        console.log(err.message);
+        return res.status(500).json({
+            status: "Something went wrong"
+        });
+    }
+});
+
 // Send message
 app.post(
     "/send-message",
@@ -103,10 +141,6 @@ app.post(
         body("from").notEmpty()
     ],
     async (req, res) => {
-        console.log("--------sending-------");
-        console.log("number: ", req.body.number);
-        console.log("message: ", req.body.message);
-        console.log("from: ", req.body.from);
         const errors = validationResult(req).formatWith(({ msg }) => {
             return msg;
         });
@@ -121,6 +155,22 @@ app.post(
         const number = phoneNumberFormatter(req.body.number);
         const message = req.body.message;
         const from = req.body.from;
+
+        console.log("--------sending-------");
+        console.log("number: ", number);
+        console.log("message: ", message);
+        console.log("from: ", from);
+
+        const connection = await checkConnection(clients, from);
+        if (!connection) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
 
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
@@ -193,6 +243,92 @@ app.post(
         );
         const from = req.body.from;
         const caption = req.body.caption;
+
+        if (!clients[from]) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
+
+        const isRegisteredNumber = await checkRegisteredNumber(
+            number,
+            clients[from]
+        );
+
+        if (!isRegisteredNumber) {
+            console.log(`${red}The number is not registered\n${reset}`);
+            return res.status(422).json({
+                status: false,
+                message: "The number is not registered"
+            });
+        }
+
+        clients[from]
+            .sendMessage(number, message, { caption: caption })
+            .then((response) => {
+                console.log(`${green}Sent\n${reset}`);
+                res.status(200).json({
+                    status: true,
+                    response: response
+                });
+            })
+            .catch((err) => {
+                console.log(`${red}Error\n${reset}`);
+                res.status(500).json({
+                    status: false,
+                    response: err
+                });
+            });
+    }
+);
+
+// Sending Image with URL
+app.post(
+    "/send-image-url-message",
+    [
+        body("number").notEmpty(),
+        body("downloadURL").notEmpty(),
+        body("from").notEmpty()
+    ],
+    async (req, res) => {
+        const errors = validationResult(req).formatWith(({ msg }) => {
+            return msg;
+        });
+
+        if (!errors.isEmpty()) {
+            console.log(errors);
+            return res.status(422).json({
+                status: false,
+                message: errors.mapped()
+            });
+        }
+
+        const downloadURL = req.body.downloadURL;
+        const number = phoneNumberFormatter(req.body.number);
+        const from = req.body.from;
+        const caption = req.body.caption;
+
+        console.log("--------sending-------");
+        console.log("number: ", number);
+        console.log("from: ", from);
+        console.log("message: ", "Attachment");
+
+        const message = await MessageMedia.fromUrl(downloadURL);
+
+        if (!clients[from]) {
+            console.log(
+                `${red}${from} is not activated. Please check your DJC System\n${reset}`
+            );
+            return res.status(422).json({
+                status: false,
+                message: `${from} is not activated. Please check your DJC System`
+            });
+        }
+
         const isRegisteredNumber = await checkRegisteredNumber(
             number,
             clients[from]
@@ -247,21 +383,40 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
 app.post("/check-clients", async (req, res) => {
     try {
         let status = {};
-        for (let key in clients) {
-            const state = await clients[key].getState();
-            console.log(`Client ${key} state: ${state}`);
-            if (state === "CONNECTED") {
-                status[key] = "active";
-            } else {
-                status[key] = "disconnected";
+        let numberOfConnectedClients = 0;
+        await Promise.all(
+            Object.keys(clients).map(async (key) => {
+                console.log("key: ", key);
+                try {
+                    const state = await clients[key].getState();
+                    console.log(`Client ${key} state: ${state}`);
+                    if (state === "CONNECTED") {
+                        status[key] = "active";
+                        numberOfConnectedClients++;
+                        return Promise.resolve();
+                    } else {
+                        status[key] = "disconnected";
+                        return Promise.resolve();
+                    }
+                } catch (err) {
+                    status[key] = "disconnected";
+                    return Promise.resolve();
+                }
+            })
+        );
+        Object.keys(status).forEach((key) => {
+            if (status[key] === "disconnected") {
+                delete clients[key];
             }
-        }
+        });
+        console.log("Number of connected clients: ", numberOfConnectedClients);
         res.status(200).json({
             status: true,
-            clientStatuses: status
+            clientStatuses: status,
+            numberOfConnectedClients: numberOfConnectedClients
         });
     } catch (err) {
-        console.log(`${err.message}`);
+        console.log(`${red}${err.message}${reset}`);
         res.status(500).json({
             status: false,
             response: err.message
@@ -276,8 +431,8 @@ process.on("uncaughtException", (err, origin) => {
     );
 });
 
-process.on("unhandledRejection", (reason, promise) => {
-    console.log(`${red}Unhandled Rejection.${reset}`);
+process.on("unhandledRejection", (reason) => {
+    console.log(`${red}Unhandled Rejection.${reset}`, reason);
 });
 
 server.listen(port, () => {
