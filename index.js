@@ -115,10 +115,13 @@ app.use(async (req, res, next) => {
 
     // If there is a destination instance, forward the request to it
     if (destinationInstance) {
+        console.log("Forwarding request to destination instance");
+        const url = `http://${destinationInstance}:8080${req.path}`;
+        console.log("url: ", url);
         try {
             const response = await axios({
                 method: req.method,
-                url: `http://${destinationInstance}:8080${req.path}`,
+                url: url,
                 headers: req.headers,
                 data: req.body
             });
