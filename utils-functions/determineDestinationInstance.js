@@ -30,7 +30,7 @@ async function determineDestinationInstance(clientId) {
 
         return ipAddress;
     } catch (error) {
-        console.log(`${red}Error getting ip address. ${reset}`);
+        console.log(`${red}Error getting ip address for ${clientId}. ${reset}`);
         return "";
     }
 }
