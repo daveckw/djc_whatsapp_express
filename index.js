@@ -118,6 +118,10 @@ app.use(async (req, res, next) => {
         console.log("Forwarding request to destination instance");
         const url = `http://${destinationInstance}:8080${req.path}`;
         console.log("url: ", url);
+        console.log("req.method: ", req.method);
+        console.log("req.headers: ", req.headers);
+        console.log("req.body: ", req.body);
+        
 
         const axios = require("axios");
         let data = JSON.stringify({
@@ -127,7 +131,7 @@ app.use(async (req, res, next) => {
         let config = {
             method: "post",
             maxBodyLength: Infinity,
-            url: "http://34.87.178.200:8080/check-clients",
+            url: url,
             headers: {
                 "Content-Type": "application/json"
             },
