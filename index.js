@@ -16,6 +16,9 @@ const {
     determineDestinationInstance
 } = require("./utils-functions/determineDestinationInstance");
 const { default: axios } = require("axios");
+const {
+    checkCorrectInstance
+} = require("./utils-functions/checkCorrectInstance");
 
 const upload = multer();
 
@@ -102,6 +105,9 @@ app.use(async (req, res, next) => {
             message: "clientId is required"
         });
     }
+
+    const response = await checkCorrectInstance(clientId);
+    if (response) next();
 
     // Determine the destination instance based on the clientId
     const destinationInstance = await determineDestinationInstance(clientId);
