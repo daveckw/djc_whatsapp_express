@@ -170,32 +170,32 @@ async function clientInitialization(clientId, client, init) {
             { merge: true }
         );
 
+        await client.destroy();
+
         // Delete .wwebjs_auth/session-{clienId} folder
         const dirPath = path.join(".wwebjs_auth", `session-${clientId}`);
 
         async function deleteAll(directoryPath) {
             try {
-                const files = await fs.readdir(directoryPath);
-                for (const file of files) {
-                    if (file !== "chrome_debug.log") {
-                        const filePath = path.join(directoryPath, file);
-                        try {
-                            await fs.remove(filePath);
-                        } catch (err) {
-                            console.log(err.message);
+                const items = await fs.readdir(directoryPath);
+                for (const item of items) {
+                    const itemPath = path.join(directoryPath, item);
+                    try {
+                        const stats = await fs.lstat(itemPath);
+                        if (stats.isDirectory()) {
+                            await deleteAll(itemPath);
+                        } else {
+                            await fs.remove(itemPath);
                         }
-
-                        console.log(`Deleted: ${filePath}`);
+                    } catch (err) {
+                        console.error(
+                            `Error deleting file or directory: ${itemPath}`,
+                            err
+                        );
                     }
                 }
-                console.log(
-                    `All files and directories within ${directoryPath} have been deleted.`
-                );
             } catch (err) {
-                console.error(
-                    `Error while deleting files and directories within ${directoryPath}.`,
-                    err
-                );
+                console.error(`Error reading directory: ${directoryPath}`, err);
             }
         }
 
