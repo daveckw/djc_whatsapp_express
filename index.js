@@ -138,19 +138,19 @@ app.use(async (req, res, next) => {
             axios
                 .request(config)
                 .then((response) => {
-                    console.log(JSON.stringify(response.data));
                     res.send(response.data);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    console.log(error.message);
                 });
         } catch (error) {
-            console.error(error);
+            console.error(error.message);
             res.status(500).send("Error forwarding request");
         }
     } else {
         // If there is no destination instance, continue to the next middleware
         next();
+        return;
     }
 });
 
