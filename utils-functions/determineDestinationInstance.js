@@ -1,5 +1,6 @@
 const { compute, auth } = require("../compute");
 const { firestore } = require("../firebase");
+const { red, reset } = require("../helpers/formatter");
 
 async function determineDestinationInstance(clientId) {
     try {
@@ -29,7 +30,8 @@ async function determineDestinationInstance(clientId) {
 
         return ipAddress;
     } catch (error) {
-        console.log(error);
+        console.log(`${red}Error getting ip address. ${reset}`);
+        return "";
     }
 }
 
