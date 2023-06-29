@@ -118,6 +118,28 @@ app.use(async (req, res, next) => {
         console.log("Forwarding request to destination instance");
         const url = `http://${destinationInstance}:8080${req.path}`;
         console.log("url: ", url);
+
+        let data = "";
+
+        let config = {
+            method: "post",
+            maxBodyLength: Infinity,
+            url: "http://34.87.178.200:8080/check-clients",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            data: data
+        };
+
+        axios
+            .request(config)
+            .then((response) => {
+                console.log(JSON.stringify(response.data));
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+
         try {
             const response = await axios({
                 method: req.method,
@@ -436,6 +458,8 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
 
 // Check clients
 app.post("/check-clients", async (req, res) => {
+    const clientId = req.body.clientId;
+    console.log("clientId: ", clientId);
     try {
         let status = {};
         let numberOfConnectedClients = 0;
