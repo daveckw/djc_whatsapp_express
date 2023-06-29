@@ -13,8 +13,7 @@ const auth = new google.auth.JWT(
     scopes
 );
 
-// Tell the Compute Engine client to use the auth
-compute.setAuthClient(auth);
-
 // Now you can use the compute object to call Compute Engine APIs
 exports.compute = compute;
+
+exports.auth = auth;

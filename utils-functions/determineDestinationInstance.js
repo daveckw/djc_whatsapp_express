@@ -1,4 +1,4 @@
-const { compute } = require("../compute");
+const { compute, auth } = require("../compute");
 const { firestore } = require("../firebase");
 
 async function determineDestinationInstance(clientId) {
@@ -17,7 +17,8 @@ async function determineDestinationInstance(clientId) {
     const instance = await compute.instances.get({
         project: "djc-whatsapp", // Replace with your project ID.
         zone: "asia-southeast1-b", // Replace with your zone.
-        instance: instanceName
+        instance: instanceName,
+        auth: auth
     });
 
     // Get the IP address from the instance details.
