@@ -91,8 +91,7 @@ async function clientInitialization(clientId, client, init) {
                     await docRef.set(
                         {
                             date: new Date(),
-                            qr: "",
-                            instanceName
+                            qr: ""
                         },
                         { merge: true }
                     );
@@ -103,8 +102,7 @@ async function clientInitialization(clientId, client, init) {
                         await docRef.update(
                             {
                                 date: new Date(),
-                                qr: dataUrl,
-                                instanceName
+                                qr: dataUrl
                             },
                             { merge: true }
                         );
