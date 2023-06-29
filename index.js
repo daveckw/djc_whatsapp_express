@@ -121,41 +121,29 @@ app.use(async (req, res, next) => {
         console.log("req.method: ", req.method);
         console.log("req.headers: ", req.headers);
         console.log("req.body: ", req.body);
-        
-
-        const axios = require("axios");
-        let data = JSON.stringify({
-            clientId: "limyokeharyahoocom"
-        });
-
-        let config = {
-            method: "post",
-            maxBodyLength: Infinity,
-            url: url,
-            headers: {
-                "Content-Type": "application/json"
-            },
-            data: data
-        };
-
-        axios
-            .request(config)
-            .then((response) => {
-                console.log(JSON.stringify(response.data));
-            })
-            .catch((error) => {
-                console.log(error);
-            });
 
         try {
-            const response = await axios({
-                method: req.method,
+            let data = JSON.stringify(req.body);
+
+            let config = {
+                method: "post",
+                maxBodyLength: Infinity,
                 url: url,
-                headers: req.headers,
-                data: req.body
-            });
-            // Send the response from the destination instance
-            res.send(response.data);
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                data: data
+            };
+
+            axios
+                .request(config)
+                .then((response) => {
+                    console.log(JSON.stringify(response.data));
+                    res.send(response.data);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
         } catch (error) {
             console.error(error);
             res.status(500).send("Error forwarding request");
