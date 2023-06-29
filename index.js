@@ -12,6 +12,9 @@ const { firestore } = require("./firebase");
 const { initializeClient } = require("./client");
 const { checkConnection } = require("./helpers/checkConnection");
 const { getInstanceName } = require("./utils-functions/checkVM");
+const {
+    determineDestinationInstance
+} = require("./utils-functions/determineDestinationInstance");
 
 const upload = multer();
 
@@ -100,6 +103,9 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
     }
 
     const clientId = req.body.clientId;
+
+    const destinationIp = await determineDestinationInstance(clientId);
+    console.log("destinationIp: ", destinationIp);
 
     const connection = await checkConnection(clients, clientId);
 
