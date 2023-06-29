@@ -118,7 +118,7 @@ app.use(async (req, res, next) => {
         try {
             const response = await axios({
                 method: req.method,
-                url: `http://${destinationInstance}${req.path}`,
+                url: `http://${destinationInstance}:8080${req.path}`,
                 headers: req.headers,
                 data: req.body
             });
