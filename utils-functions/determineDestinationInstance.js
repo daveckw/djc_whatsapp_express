@@ -1,4 +1,4 @@
-const { compute } = require("googleapis/build/src/apis/compute");
+const { compute } = require("../compute");
 const { firestore } = require("../firebase");
 
 async function determineDestinationInstance(clientId) {
