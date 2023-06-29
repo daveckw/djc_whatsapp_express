@@ -119,7 +119,10 @@ app.use(async (req, res, next) => {
         const url = `http://${destinationInstance}:8080${req.path}`;
         console.log("url: ", url);
 
-        let data = "";
+        const axios = require("axios");
+        let data = JSON.stringify({
+            clientId: "limyokeharyahoocom"
+        });
 
         let config = {
             method: "post",
