@@ -105,6 +105,7 @@ app.use(async (req, res, next) => {
 
     // Determine the destination instance based on the clientId
     const destinationInstance = await determineDestinationInstance(clientId);
+    console.log("destinationInstance: ", destinationInstance);
 
     // If there is a destination instance, forward the request to it
     if (destinationInstance) {
