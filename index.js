@@ -100,7 +100,7 @@ app.use(async (req, res, next) => {
     const clientId = req.body.clientId || req.body.from;
 
     if (!clientId) {
-        return res.status(422).json({
+        return res.status(200).json({
             status: false,
             message: "clientId is required"
         });
