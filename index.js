@@ -68,6 +68,71 @@ const getWhatsAppClients = async () => {
 
 if (process.env.NODE_ENV !== "development") {
     getWhatsAppClients();
+
+    // Middleware to handle routing based on clientId
+    app.use(async (req, res, next) => {
+        // Extract the clientId from the request
+        const clientId = req.body.clientId || req.body.from;
+
+        if (!clientId) {
+            return res.status(200).json({
+                status: false,
+                message: "clientId is required"
+            });
+        }
+
+        const response = await checkCorrectInstance(clientId);
+        if (response) {
+            next();
+            return;
+        }
+
+        // Determine the destination instance based on the clientId
+        const destinationInstance = await determineDestinationInstance(
+            clientId
+        );
+        console.log("destinationInstance: ", destinationInstance);
+
+        // If there is a destination instance, forward the request to it
+        if (destinationInstance) {
+            console.log(
+                clientId,
+                " - Forwarding request to destination instance"
+            );
+            const url = `http://${destinationInstance}:8080${req.path}`;
+            console.log("url: ", url);
+
+            try {
+                let data = JSON.stringify(req.body);
+
+                let config = {
+                    method: "post",
+                    maxBodyLength: Infinity,
+                    url: url,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    data: data
+                };
+
+                axios
+                    .request(config)
+                    .then((response) => {
+                        res.send(response.data);
+                    })
+                    .catch((error) => {
+                        console.log(error.message);
+                    });
+            } catch (error) {
+                console.error(error.message);
+                res.status(500).send("Error forwarding request");
+            }
+        } else {
+            // If there is no destination instance, continue to the next middleware
+            next();
+            return;
+        }
+    });
 }
 
 let connections = new Set();
@@ -94,66 +159,6 @@ process.on("SIGINT", () => {
     });
 });
 
-// Middleware to handle routing based on clientId
-app.use(async (req, res, next) => {
-    // Extract the clientId from the request
-    const clientId = req.body.clientId || req.body.from;
-
-    if (!clientId) {
-        return res.status(200).json({
-            status: false,
-            message: "clientId is required"
-        });
-    }
-
-    const response = await checkCorrectInstance(clientId);
-    if (response) {
-        next();
-        return;
-    }
-
-    // Determine the destination instance based on the clientId
-    const destinationInstance = await determineDestinationInstance(clientId);
-    console.log("destinationInstance: ", destinationInstance);
-
-    // If there is a destination instance, forward the request to it
-    if (destinationInstance) {
-        console.log("Forwarding request to destination instance");
-        const url = `http://${destinationInstance}:8080${req.path}`;
-        console.log("url: ", url);
-
-        try {
-            let data = JSON.stringify(req.body);
-
-            let config = {
-                method: "post",
-                maxBodyLength: Infinity,
-                url: url,
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                data: data
-            };
-
-            axios
-                .request(config)
-                .then((response) => {
-                    res.send(response.data);
-                })
-                .catch((error) => {
-                    console.log(error.message);
-                });
-        } catch (error) {
-            console.error(error.message);
-            res.status(500).send("Error forwarding request");
-        }
-    } else {
-        // If there is no destination instance, continue to the next middleware
-        next();
-        return;
-    }
-});
-
 app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
     const errors = validationResult(req).formatWith(({ msg }) => {
         return msg;
@@ -167,9 +172,6 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
     }
 
     const clientId = req.body.clientId;
-
-    const destinationIp = await determineDestinationInstance(clientId);
-    console.log("destinationIp: ", destinationIp);
 
     const connection = await checkConnection(clients, clientId);
 
@@ -438,7 +440,7 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
     const from = req.body.from;
     try {
         const state = await clients[from].getState();
-        console.log(state);
+        console.log(from, state);
         res.status(200).json({
             status: true
         });

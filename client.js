@@ -6,6 +6,8 @@ const { firestore } = require("./firebase");
 const { extractNumbers } = require("./helpers/formatter");
 const { dateToString } = require("./helpers/dateToString");
 const { getInstanceName } = require("./utils-functions/checkVM");
+const fs = require("fs-extra");
+const path = require("path");
 
 const authenticatioMethod = "local"; // local or remote
 const URI = process.env.MONGODB_URI;
@@ -85,7 +87,7 @@ async function clientInitialization(clientId, client, init) {
                     .collection("whatsappClients")
                     .doc(clientId);
 
-                if (qrCount[clientId] > 2) {
+                if (qrCount[clientId] > 3) {
                     console.log("Times out. Destroying client ", clientId);
                     client.destroy();
                     await docRef.set(
@@ -157,7 +159,7 @@ async function clientInitialization(clientId, client, init) {
         console.log("Authentication failure:", msg);
     });
 
-    client.on("disconnected", (reason) => {
+    client.on("disconnected", async (reason) => {
         console.log("Client disconnected:", reason);
         firestore.collection("whatsappClients").doc(clientId).set(
             {
@@ -167,6 +169,42 @@ async function clientInitialization(clientId, client, init) {
             },
             { merge: true }
         );
+
+        // Delete .wwebjs_auth/session-{clienId} folder
+        const dirPath = path.join(".wwebjs_auth", `session-${clientId}`);
+
+        async function deleteAll(directoryPath) {
+            try {
+                const files = await fs.readdir(directoryPath);
+                for (const file of files) {
+                    if (file !== "chrome_debug.log") {
+                        const filePath = path.join(directoryPath, file);
+                        try {
+                            await fs.remove(filePath);
+                        } catch (err) {
+                            console.log(err.message);
+                        }
+
+                        console.log(`Deleted: ${filePath}`);
+                    }
+                }
+                console.log(
+                    `All files and directories within ${directoryPath} have been deleted.`
+                );
+            } catch (err) {
+                console.error(
+                    `Error while deleting files and directories within ${directoryPath}.`,
+                    err
+                );
+            }
+        }
+
+        // Check if folder exists
+        if (fs.existsSync(dirPath)) {
+            deleteAll(dirPath);
+        } else {
+            console.log(`${dirPath} does not exist.`);
+        }
     });
 
     client.on("message", async (message) => {
