@@ -107,7 +107,10 @@ app.use(async (req, res, next) => {
     }
 
     const response = await checkCorrectInstance(clientId);
-    if (response) next();
+    if (response) {
+        next();
+        return;
+    }
 
     // Determine the destination instance based on the clientId
     const destinationInstance = await determineDestinationInstance(clientId);
@@ -118,9 +121,6 @@ app.use(async (req, res, next) => {
         console.log("Forwarding request to destination instance");
         const url = `http://${destinationInstance}:8080${req.path}`;
         console.log("url: ", url);
-        console.log("req.method: ", req.method);
-        console.log("req.headers: ", req.headers);
-        console.log("req.body: ", req.body);
 
         try {
             let data = JSON.stringify(req.body);
