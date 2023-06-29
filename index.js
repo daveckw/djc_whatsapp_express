@@ -15,6 +15,7 @@ const { getInstanceName } = require("./utils-functions/checkVM");
 const {
     determineDestinationInstance
 } = require("./utils-functions/determineDestinationInstance");
+const { default: axios } = require("axios");
 
 const upload = multer();
 
@@ -88,6 +89,42 @@ process.on("SIGINT", () => {
         console.log("Server closed.");
         process.exit(0);
     });
+});
+
+// Middleware to handle routing based on clientId
+app.use(async (req, res, next) => {
+    // Extract the clientId from the request
+    const clientId = req.body.clientId || req.body.from;
+
+    if (!clientId) {
+        return res.status(422).json({
+            status: false,
+            message: "clientId is required"
+        });
+    }
+
+    // Determine the destination instance based on the clientId
+    const destinationInstance = await determineDestinationInstance(clientId);
+
+    // If there is a destination instance, forward the request to it
+    if (destinationInstance) {
+        try {
+            const response = await axios({
+                method: req.method,
+                url: `http://${destinationInstance}${req.path}`,
+                headers: req.headers,
+                data: req.body
+            });
+            // Send the response from the destination instance
+            res.send(response.data);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send("Error forwarding request");
+        }
+    } else {
+        // If there is no destination instance, continue to the next middleware
+        next();
+    }
 });
 
 app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
