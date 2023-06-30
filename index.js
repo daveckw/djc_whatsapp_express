@@ -445,7 +445,6 @@ app.post("/check-state", [body("from").notEmpty()], async (req, res) => {
             status: true
         });
     } catch (err) {
-        console.log(`${red}${err.message} from: ${from}${reset}`);
         res.status(500).json({
             status: false,
             response: err.message

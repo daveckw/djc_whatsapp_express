@@ -248,14 +248,34 @@ async function clientInitialization(clientId, client, init) {
                     "-" +
                     extractNumbers(message.from);
             }
+
+            const quotedMessagePromise = new Promise((resolve) => {
+                if (message.hasQuotedMsg) {
+                    try {
+                        resolve(message.getQuotedMessage());
+                    } catch (err) {
+                        console.log(err.message);
+                        resolve("");
+                    }
+                } else {
+                    resolve("");
+                }
+            });
+
+            const quotedMessage = await quotedMessagePromise;
+            let body = typeof message.body === "string" ? message.body : "";
+            body = quotedMessage
+                ? `Quoted message: ${quotedMessage.body}\n\n${body}`
+                : body;
             const whatsappMessage = {
                 date: new Date(),
                 from: message.from,
                 to: message.to,
                 name: message._data.notifyName || "",
                 type: message._data.type || "",
-                body: typeof message.body === "string" ? message.body : "",
+                body: body,
                 clientId,
+                quotedMessage: quotedMessage.body || "",
                 chatRoomId
             };
             console.log(whatsappMessage);
