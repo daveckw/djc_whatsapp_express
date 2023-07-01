@@ -38,7 +38,7 @@ exports.initializeClient = async (clientId, init = false) => {
                     ]
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, init);
+            return clientInitialization(clientId, client, init);
         } else if (authenticatioMethod === "remote") {
             console.log("Connecting to MongoDB...", clientId);
             await mongoose.connect(URI);
@@ -63,7 +63,7 @@ exports.initializeClient = async (clientId, init = false) => {
                     timeout: 60000
                 } // set to true when deployed
             });
-            return await clientInitialization(clientId, client, init);
+            return clientInitialization(clientId, client, init);
         }
     } catch (err) {
         console.log(err);
