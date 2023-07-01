@@ -163,9 +163,12 @@ async function clientInitialization(clientId, client, init) {
         console.log("Client disconnected:", reason);
         firestore.collection("whatsappClients").doc(clientId).set(
             {
+                date: new Date(),
                 clientId: clientId,
                 status: "disconnected",
-                date: new Date()
+                instanceName: "",
+                qr: "",
+                previousInstanceName: instanceName
             },
             { merge: true }
         );
@@ -209,13 +212,6 @@ async function clientInitialization(clientId, client, init) {
 
     client.on("message", async (message) => {
         try {
-            console.log("message.from: ", message.from);
-            console.log("message.to: ", message.to);
-            console.log("Name: ", message._data.notifyName);
-            console.log("message.body: ", message.body);
-            console.log("type: ", message._data.type);
-            console.log("-----------------------------");
-
             let msg = {
                 from: message.from,
                 to: message.to,

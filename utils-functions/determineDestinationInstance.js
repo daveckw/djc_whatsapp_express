@@ -14,7 +14,7 @@ async function determineDestinationInstance(clientId) {
             return "";
         }
         const instanceName = doc.data().instanceName;
-        if (instanceName === "localhost") return "localhost:8080";
+        if (instanceName === "localhost") return "";
 
         // Get the instance details from Compute Engine.
         const instance = await compute.instances.get({
