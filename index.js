@@ -185,18 +185,19 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
 
     try {
         clients[clientId] = await initializeClient(clientId, true);
-        return res
-            .status(200)
+        res.status(200)
             .set("Access-Control-Allow-Origin", "*")
             .json({
                 status: `Client ${clientId} started`,
                 clientId: clientId
             });
+        return;
     } catch (err) {
         console.log(err.message);
-        return res.status(500).json({
+        res.status(500).json({
             status: "Something went wrong"
         });
+        return;
     }
 });
 
