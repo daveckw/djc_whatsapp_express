@@ -232,6 +232,9 @@ async function clientInitialization(clientId, client, init) {
 
     client.on("message_create", async (message) => {
         try {
+            const type = message._data.type;
+            if (type === "e2e_notification") return;
+
             let chatRoomId = "";
             if (message.fromMe) {
                 chatRoomId =
@@ -268,8 +271,8 @@ async function clientInitialization(clientId, client, init) {
                 from: message.from,
                 to: message.to,
                 name: message._data.notifyName || "",
-                type: message._data.type || "",
-                body: body,
+                type: type || "",
+                body: body || "",
                 clientId,
                 quotedMessage: quotedMessage.body || "",
                 chatRoomId
