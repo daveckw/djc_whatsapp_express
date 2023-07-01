@@ -279,8 +279,6 @@ async function clientInitialization(clientId, client, init) {
             };
             console.log(whatsappMessage);
 
-            console.log("Type: ", whatsappMessage.type);
-
             if (process.env.NODE_ENV === "development") return;
 
             if (whatsappMessage.type === "chat") {
