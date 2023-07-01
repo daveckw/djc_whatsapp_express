@@ -185,19 +185,10 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
 
     try {
         clients[clientId] = await initializeClient(clientId, true);
-        const connection = await checkConnection(clients, clientId);
-        if (connection) {
-            return res.status(200).json({
-                status: `Client ${clientId} started`,
-                clientId: clientId
-            });
-        } else {
-            console.log(`${red}clientId: ${clientId} failed to start${reset}`);
-            return res.status(200).json({
-                status: `Client ${clientId} failed to start`,
-                clientId: ""
-            });
-        }
+        return res.status(200).json({
+            status: `Client ${clientId} started`,
+            clientId: clientId
+        });
     } catch (err) {
         console.log(err.message);
         return res.status(500).json({
