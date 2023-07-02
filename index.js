@@ -160,8 +160,6 @@ process.on("SIGINT", () => {
 });
 
 app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
-    req.setTimeout(60000);
-
     const errors = validationResult(req).formatWith(({ msg }) => {
         return msg;
     });
@@ -186,20 +184,12 @@ app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
     }
 
     try {
-        clients[clientId] = await initializeClient(clientId, true);
-        res.status(200)
-            .set("Access-Control-Allow-Origin", "*")
-            .json({
-                status: `Client ${clientId} started`,
-                clientId: clientId
-            });
-        return;
-    } catch (err) {
-        console.log(err.message);
-        res.status(500).json({
-            status: "Something went wrong"
+        res.status(200).json({
+            status: `Initializing ${clientId} ...`
         });
-        return;
+        clients[clientId] = await initializeClient(clientId, true);
+    } catch (err) {
+        console.log(`${red}err.message${reset}`);
     }
 });
 
