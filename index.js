@@ -160,6 +160,8 @@ process.on("SIGINT", () => {
 });
 
 app.post("/start", [body("clientId").notEmpty()], async (req, res) => {
+    req.setTimeout(60000);
+
     const errors = validationResult(req).formatWith(({ msg }) => {
         return msg;
     });

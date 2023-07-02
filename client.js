@@ -38,6 +38,7 @@ exports.initializeClient = async (clientId, init = false) => {
                     ]
                 } // set to true when deployed
             });
+
             return clientInitialization(clientId, client, init);
         } else if (authenticatioMethod === "remote") {
             console.log("Connecting to MongoDB...", clientId);
