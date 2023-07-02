@@ -143,16 +143,20 @@ async function clientInitialization(clientId, client, init) {
 
     client.on("ready", async () => {
         console.log(`${green}Whatsapp Client ${clientId} is ready!${reset}`);
-        firestore.collection("whatsappClients").doc(clientId).set(
-            {
-                clientId: clientId,
-                status: "ready",
-                qr: "",
-                date: new Date(),
-                instanceName
-            },
-            { merge: true }
-        );
+        firestore
+            .collection("whatsappClients")
+            .doc(clientId)
+            .set(
+                {
+                    clientId: clientId,
+                    status: "ready",
+                    qr: "",
+                    date: new Date(),
+                    instanceName,
+                    phone: client["info"]["wid"]["user"] || ""
+                },
+                { merge: true }
+            );
         console.log("phone: ", client["info"]["wid"]["user"]);
     });
 
