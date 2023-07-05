@@ -19,6 +19,8 @@ const { default: axios } = require("axios");
 const {
     checkCorrectInstance
 } = require("./utils-functions/checkCorrectInstance");
+const { deleteDirectory } = require("./utils-functions/deleteDirectory");
+const { getDirectorySize } = require("./utils-functions/getDirectorySize");
 
 const upload = multer();
 
@@ -485,6 +487,65 @@ app.post("/check-clients", async (req, res) => {
         });
     }
 });
+
+app.post("/clear-cache", [body("clientId").notEmpty()], async (req, res) => {
+    const clientId = req.body.clientId;
+    try {
+        const status = deleteDirectory(clientId);
+        res.status(200).json(status);
+    } catch (err) {
+        res.status(200).json({
+            status: false,
+            response: err.message
+        });
+    }
+});
+
+app.post(
+    "/get-directory-size",
+    [body("clientId").notEmpty()],
+    async (req, res) => {
+        const clientId = req.body.clientId;
+        const allClientIds = req.body.allClientIds;
+        if (allClientIds) {
+            const status = [];
+            Object.keys(clients).forEach((clientId) => {
+                try {
+                    const size = getDirectorySize(
+                        `.wwebjs_auth/session-${clientId}`
+                    );
+                    console.log("size: ", size / 1000000, " MB");
+                    status.push({
+                        size: size / 1000000 + " MB",
+                        clientId: clientId
+                    });
+                } catch (err) {
+                    status.push({
+                        size: err.message,
+                        clientId: clientId
+                    });
+                }
+            });
+            res.status(200).json(status);
+            return;
+        }
+        try {
+            const size = getDirectorySize(`.wwebjs_auth/session-${clientId}`);
+            console.log("size: ", size / 1000000, " MB");
+            res.status(200).json({
+                clientId,
+                status: true,
+                size: size / 1000000 + " MB"
+            });
+        } catch (err) {
+            res.status(200).json({
+                clientId,
+                status: false,
+                response: err.message
+            });
+        }
+    }
+);
 
 process.on("uncaughtException", (err, origin) => {
     console.log(
