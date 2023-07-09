@@ -6,7 +6,6 @@ const { phoneNumberFormatter } = require("./helpers/formatter");
 const { checkRegisteredNumber } = require("./helpers/checkRegisteredNumber");
 const { MessageMedia } = require("whatsapp-web.js");
 const http = require("http");
-
 const multer = require("multer");
 const { firestore } = require("./firebase");
 const { initializeClient } = require("./client");
@@ -21,6 +20,7 @@ const {
 } = require("./utils-functions/checkCorrectInstance");
 const { deleteDirectory } = require("./utils-functions/deleteDirectory");
 const { getDirectorySize } = require("./utils-functions/getDirectorySize");
+const { checkSecret } = require("./utils-functions/checkSecret");
 
 const upload = multer();
 
@@ -75,6 +75,7 @@ if (process.env.NODE_ENV !== "development") {
     app.use(async (req, res, next) => {
         // Extract the clientId from the request
         const clientId = req.body.clientId || req.body.from;
+        const secret = req.body.secret;
 
         if (!clientId) {
             return res.status(200).json({
@@ -83,8 +84,16 @@ if (process.env.NODE_ENV !== "development") {
             });
         }
 
+        if (!checkSecret(clientId, secret)) {
+            return res.status(200).json({
+                status: false,
+                message: "Secret is invalid"
+            });
+        }
+
         const response = await checkCorrectInstance(clientId);
         if (response) {
+            // if this is the correct one, continue to the next middleware
             next();
             return;
         }
@@ -380,8 +389,6 @@ app.post(
         console.log("from: ", from);
         console.log("message: ", "Attachment");
 
-        const message = await MessageMedia.fromUrl(downloadURL);
-
         if (!clients[from]) {
             console.log(
                 `${red}${from} is not activated. Please check your DJC System\n${reset}`
@@ -404,6 +411,8 @@ app.post(
                 message: "The number is not registered"
             });
         }
+
+        const message = await MessageMedia.fromUrl(downloadURL);
 
         clients[from]
             .sendMessage(number, message, { caption: caption })
